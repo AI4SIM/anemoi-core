@@ -1,0 +1,98 @@
+# (C) Copyright 2024 Anemoi contributors.
+#
+# This software is licensed under the terms of the Apache Licence Version 2.0
+# which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# In applying this licence, ECMWF does not waive the privileges and immunities
+# granted to it by virtue of its status as an intergovernmental organisation
+# nor does it submit to any jurisdiction.
+from __future__ import annotations
+
+import logging
+from typing import TYPE_CHECKING
+
+from peft import LoraConfig
+from peft import get_peft_model
+
+from anemoi.models.data_indices.collection import IndexCollection
+from anemoi.training.train.forecaster import GraphForecaster
+
+if TYPE_CHECKING:
+    import torch
+    from torch_geometric.data import HeteroData
+
+    from anemoi.models.data_indices.collection import IndexCollection
+    from anemoi.training.schemas.base_schema import BaseSchema
+
+
+LOGGER = logging.getLogger(__name__)
+
+
+class LoRAGraphForecaster(GraphForecaster):
+    """Graph neural network forecaster for PyTorch Lightning."""
+
+    def __init__(
+        self,
+        *,
+        config: BaseSchema,
+        graph_data: HeteroData,
+        truncation_data: dict,
+        statistics: dict,
+        statistics_tendencies: dict,
+        data_indices: IndexCollection,
+        metadata: dict,
+        supporting_arrays: dict,
+    ) -> None:
+        """Initialize graph neural network forecaster.
+
+        Parameters
+        ----------
+        config : DictConfig
+            Job configuration
+        graph_data : HeteroData
+            Graph object
+        statistics : dict
+            Statistics of the training data
+        data_indices : IndexCollection
+            Indices of the training data,
+        metadata : dict
+            Provenance information
+        supporting_arrays : dict
+            Supporting NumPy arrays to store in the checkpoint
+
+        """
+        super().__init__(
+            config=config,
+            graph_data=graph_data,
+            truncation_data=truncation_data,
+            statistics=statistics,
+            statistics_tendencies=statistics_tendencies,
+            data_indices=data_indices,
+            metadata=metadata,
+            supporting_arrays=supporting_arrays,
+        )
+
+        self.lora_config = LoraConfig(
+            r=8,
+            lora_alpha=32,
+            target_modules=[
+                "lin_key",
+                "lin_query",
+                "lin_value",
+                "lin_self",
+                "lin_v",
+                "lin_k",
+                "lin_q",
+                "projection",
+                "mlp.0",
+                "mlp.2",
+                "node_dst_mlp.0",
+                "node_dst_mlp.2",
+            ],
+            modules_to_save=["node_data_extractor.1"],
+            task_type=None,
+        )
+
+    def on_load_checkpoint(self, checkpoint: torch.nn.module) -> None:
+        self._ckpt_model_name_to_index = checkpoint["hyper_parameters"]["data_indices"].name_to_index
+        get_peft_model(self.model, self.lora_config)

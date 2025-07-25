@@ -102,7 +102,11 @@ class GraphForecaster(pl.LightningModule):
         self.latlons_data = graph_data[config.graph.data].x
         self.statistics_tendencies = statistics_tendencies
 
-        self.logger_enabled = config.diagnostics.log.wandb.enabled or config.diagnostics.log.mlflow.enabled
+        self.logger_enabled = (
+            config.diagnostics.log.wandb.enabled
+            or config.diagnostics.log.mlflow.enabled
+            or config.diagnostics.log.tensorboard.enabled
+        )
 
         metadata_extractor = ExtractVariableGroupAndLevel(
             variable_groups=config.model_dump(by_alias=True).training.variable_groups,
