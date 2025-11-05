@@ -229,6 +229,7 @@ class AnemoiTrainer(ABC):
             if self.config.training.transfer_learning:
                 LOGGER.info("Loading weights with Transfer Learning from %s", self.last_checkpoint)
                 model = transfer_learning_loading(model, self.last_checkpoint)
+                # Added for LoRA #TODO remove when better strategy is implemented
                 model.on_load_checkpoint(self.last_checkpoint)
             else:
                 LOGGER.info("Restoring only model weights from %s", self.last_checkpoint)
