@@ -405,6 +405,7 @@ TrainingSchema = Annotated[
     | ForecasterEnsSchema
     | InterpolationSchema
     | DiffusionForecasterSchema
-    | DiffusionTendForecasterSchema,
+    | DiffusionTendForecasterSchema
+    | LoRAForecasterSchema,
     Discriminator("model_task"),
 ]
