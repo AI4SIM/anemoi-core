@@ -386,6 +386,11 @@ class DiffusionTendForecasterSchema(ForecasterSchema):
     "Training objective."
 
 
+class LoRAForecasterSchema(ForecasterSchema):
+    model_task: Literal["anemoi.training.train.tasks.LoRAGraphForecaster",] = Field(..., alias="model_task")
+    "Training objective."
+
+
 class InterpolationSchema(BaseTrainingSchema):
     model_task: Literal["anemoi.training.train.tasks.GraphInterpolator"] = Field(..., alias="model_task")
     "Training objective."
