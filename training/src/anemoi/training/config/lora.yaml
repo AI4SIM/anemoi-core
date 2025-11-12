@@ -12,3 +12,10 @@ defaults:
 
 # set to true to switch on config validation
 config_validation: True
+
+training:
+  lora_config:
+    r: 8
+    lora_alpha: 32
+    target_modules: ['mlp.0', 'mlp.2', 'dummy_layer']
+    modules_to_save: ['node_data_extractor.1']

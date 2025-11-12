@@ -73,26 +73,7 @@ class LoRAGraphForecaster(GraphForecaster):
             supporting_arrays=supporting_arrays,
         )
 
-        self.lora_config = LoraConfig(
-            r=8,
-            lora_alpha=32,
-            target_modules=[
-                "lin_key",
-                "lin_query",
-                "lin_value",
-                "lin_self",
-                "lin_v",
-                "lin_k",
-                "lin_q",
-                "projection",
-                "mlp.0",
-                "mlp.2",
-                "node_dst_mlp.0",
-                "node_dst_mlp.2",
-            ],
-            modules_to_save=["node_data_extractor.1"],
-            task_type=None,
-        )
+        self.lora_config = LoraConfig(**config.model_dump(by_alias=True).training.lora_config)
 
     def on_load_checkpoint(self, checkpoint: torch.nn.module) -> None:
         self._ckpt_model_name_to_index = checkpoint["hyper_parameters"]["data_indices"].name_to_index

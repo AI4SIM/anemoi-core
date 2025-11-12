@@ -13,6 +13,7 @@ from typing import Annotated
 from typing import Any
 from typing import Literal
 
+from peft import LoraConfig
 from pydantic import AfterValidator
 from pydantic import Discriminator
 from pydantic import Field
@@ -109,6 +110,23 @@ class TargetForcing(BaseModel):
     "List of forcing parameters to use as input to the model at the interpolated step."
     time_fraction: bool = Field(example=True)
     "Use target time as a fraction between input boundary times as input."
+
+
+class LoRAConfig(BaseModel):
+    """LoRA parameters.
+    
+    See https://huggingface.co/docs/peft/package_reference/lora#peft.LoraConfig 
+    for more information.
+    """
+
+    r: int = 8
+    "Lora attention dimension (the “rank”)."
+    lora_alpha: int = 32
+    "The alpha parameter for Lora scaling."
+    target_modules: list[str] = Field(examples=["mlp.0", "mlp.2"])
+    "The names of the modules to apply the adapter to."
+    modules_to_save: list[str] = Field(examples=["node_data_extractor.1"])
+    "List of modules apart from adapter layers to be set as trainable."
 
 
 class LossScalingSchema(BaseModel):
@@ -389,6 +407,8 @@ class DiffusionTendForecasterSchema(ForecasterSchema):
 class LoRAForecasterSchema(ForecasterSchema):
     model_task: Literal["anemoi.training.train.tasks.LoRAGraphForecaster"] = Field(..., alias="model_task")
     "Training objective."
+    lora_config: LoRAConfig
+    "Configuration for the LoRA adapter."
 
 
 class InterpolationSchema(BaseTrainingSchema):
