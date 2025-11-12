@@ -383,3 +383,36 @@ def diffusion_config(
     cfg = OmegaConf.merge(template, testing_modifications_with_temp_dir, use_case_modifications)
     OmegaConf.resolve(cfg)
     return cfg, dataset_urls[0]
+
+
+@pytest.fixture
+def lora_config(
+    testing_modifications_with_temp_dir: DictConfig,
+    get_tmp_paths: GetTmpPaths,
+    get_test_data: GetTestData,
+    migrator: Migrator,
+) -> tuple[DictConfig, str]:
+    with initialize(version_base=None, config_path="../../src/anemoi/training/config", job_name="test_lora"):
+        template = compose(config_name="lora")
+
+    use_case_modifications = OmegaConf.load(Path.cwd() / "training/tests/integration/config/test_lora.yaml")
+    assert isinstance(use_case_modifications, DictConfig)
+
+    tmp_dir, rel_paths, dataset_urls = get_tmp_paths(use_case_modifications, ["dataset"])
+    use_case_modifications.hardware.paths.data = tmp_dir
+    use_case_modifications.hardware.files.dataset = rel_paths[0]
+
+    cfg = OmegaConf.merge(template, testing_modifications_with_temp_dir, use_case_modifications)
+    OmegaConf.resolve(cfg)
+    assert isinstance(cfg, DictConfig)
+
+    existing_ckpt = get_test_data(
+            "anemoi-integration-tests/training/checkpoints/testing-checkpoint-gnn-global-2025-07-31.ckpt",
+        )
+    _, new_ckpt, _ = migrator.sync(existing_ckpt)
+
+    checkpoint_dir = Path(cfg.hardware.paths.output + "checkpoint/dummy_id")
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    torch.save(new_ckpt, checkpoint_dir / "last.ckpt")
+
+    return cfg, dataset_urls[0]

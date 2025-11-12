@@ -206,3 +206,16 @@ def test_training_cycle_diffusion(diffusion_config: tuple[DictConfig, str], get_
 def test_config_validation_diffusion(diffusion_config: tuple[DictConfig, str]) -> None:
     cfg, _ = diffusion_config
     BaseSchema(**cfg)
+
+
+@skip_if_offline
+@pytest.mark.slow
+def test_training_cycle_lora(lora_config: tuple[DictConfig, list[str]], get_test_archive: GetTestArchive) -> None:
+    cfg, url = lora_config
+    get_test_archive(url)
+    AnemoiTrainer(cfg).train()
+
+
+def test_config_validation_lora(lora_config: tuple[DictConfig, str]) -> None:
+    cfg, _ = lora_config
+    BaseSchema(**cfg)
