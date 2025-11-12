@@ -52,7 +52,7 @@ dependencies = [
   "mlflow-skinny>=2.11.1",
   "numpy<2",                                         # Pinned until we can confirm it works with anemoi graphs
   "nvidia-ml-py>=13.580.82",
-  "peft",
+  "peft>=0.17.1",
   "pydantic>=2.9",
   "pyshtools>=4.13",
   "pytorch-lightning>=2.1",
