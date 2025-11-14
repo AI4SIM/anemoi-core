@@ -75,6 +75,6 @@ class LoRAGraphForecaster(GraphForecaster):
 
         self.lora_config = LoraConfig(**config.model_dump(by_alias=True).training.lora_config)
 
-    def on_load_checkpoint(self, checkpoint: torch.nn.module) -> None:
-        self._ckpt_model_name_to_index = checkpoint["hyper_parameters"]["data_indices"].name_to_index
+    def on_checkpoint_loaded(self) -> None:
         get_peft_model(self.model, self.lora_config)
+        LOGGER.info("LoRA adapters injected into the model")
