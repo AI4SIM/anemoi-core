@@ -113,8 +113,8 @@ class TargetForcing(BaseModel):
 
 class LoRAConfig(BaseModel):
     """LoRA parameters.
-    
-    See https://huggingface.co/docs/peft/package_reference/lora#peft.LoraConfig 
+
+    See https://huggingface.co/docs/peft/package_reference/lora#peft.LoraConfig
     for more information.
     """
 

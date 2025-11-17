@@ -1,5 +1,5 @@
 # (C) Copyright 2024 Anemoi contributors.
-# Copyright (C) Bull S.A.S - 2025 
+# Copyright (C) Bull S.A.S - 2025
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -14,8 +14,6 @@ from typing import TYPE_CHECKING
 
 from peft import LoraConfig
 from peft import get_peft_model
-
-import torch
 
 from anemoi.training.train.tasks import GraphForecaster
 

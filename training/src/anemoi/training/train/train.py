@@ -229,7 +229,8 @@ class AnemoiTrainer(ABC):
             if self.config.training.transfer_learning:
                 LOGGER.info("Loading weights with Transfer Learning from %s", self.last_checkpoint)
                 model = transfer_learning_loading(model, self.last_checkpoint)
-                # Added for LoRA #TODO remove when better strategy is implemented
+                # Added for LoRA
+                # TODO(Mikael): remove when better strategy is implemented
                 model.on_checkpoint_loaded()
             else:
                 LOGGER.info("Restoring only model weights from %s", self.last_checkpoint)
@@ -237,7 +238,8 @@ class AnemoiTrainer(ABC):
                 # by the data indices from the new config
                 kwargs.pop("data_indices")
                 model = model_task.load_from_checkpoint(self.last_checkpoint, **kwargs, strict=False)
-                # Added for LoRA #TODO remove when better strategy is implemented
+                # Added for LoRA
+                # TODO(Mikael): remove when better strategy is implemented
                 model.on_checkpoint_loaded()
 
             model.data_indices = self.data_indices
