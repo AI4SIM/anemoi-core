@@ -313,6 +313,10 @@ class BaseGraphModule(pl.LightningModule, ABC):
         self._ckpt_model_name_to_index = checkpoint["hyper_parameters"]["data_indices"].name_to_index
 
     def on_checkpoint_loaded(self) -> None:
+        """Called by anemoi-training once a model has been loaded from a checkpoint, either via 
+            transfer learning or weights only setting. Override to perform actions on the model
+            once the checkpoint has been loaded.
+        """
         pass
 
     def update_scalers(self, callback: AvailableCallbacks) -> None:
