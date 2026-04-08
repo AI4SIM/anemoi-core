@@ -75,6 +75,7 @@ class LoRAGraphForecaster(GraphForecaster):
         self.lora_config = LoraConfig(**config.model_dump(by_alias=True).training.lora_config)
 
     def on_load_checkpoint(self, checkpoint) -> None:
+        self._ckpt_model_name_to_index = checkpoint["hyper_parameters"]["data_indices"].name_to_index
         if 'LoRAGraphForecaster' in checkpoint['hyper_parameters']['config'].training.model_task:
             self._inject_lora_adapters()
     
