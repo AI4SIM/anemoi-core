@@ -263,6 +263,7 @@ class ImplementedLossesUsingBaseLossSchema(StrEnum):
     rmse = "anemoi.training.losses.RMSELoss"
     mse = "anemoi.training.losses.MSELoss"
     weighted_mse = "anemoi.training.losses.WeightedMSELoss"
+    weighted_charbonnier = "anemoi.training.losses.WeightedCharbonnierLoss"
     mae = "anemoi.training.losses.MAELoss"
     logcosh = "anemoi.training.losses.LogCoshLoss"
     huber = "anemoi.training.losses.HuberLoss"
@@ -319,6 +320,11 @@ class HuberLossSchema(BaseLossSchema):
     "Threshold for Huber loss."
 
 
+class WeightedCharbonnierLossSchema(BaseLossSchema):
+    epsilon: float = 1e-6
+    "Small constant to avoid division by zero in Charbonnier loss."
+
+
 class SpectralLossSchema(BaseLossSchema):
     """Spectral loss class."""
 
@@ -366,6 +372,7 @@ LossSchemas = (
     | AlmostFairKernelCRPSSchema
     | KernelCRPSSchema
     | SpectralLossSchema
+    | WeightedCharbonnierLossSchema
     | MultiScaleLossSchema
 )
 
