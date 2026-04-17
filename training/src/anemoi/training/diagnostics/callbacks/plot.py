@@ -78,17 +78,13 @@ class BasePlotCallback(Callback, ABC):
         self._executor = None
         self._error: BaseException = None
         self.datashader_plotting = config.diagnostics.plot.datashader
-        self.projection_kind = getattr(
-            config.diagnostics.plot, "projection_kind", "equirectangular"
-        )
+        self.projection_kind = getattr(config.diagnostics.plot, "projection_kind", "equirectangular")
 
         if self.config.diagnostics.plot.asynchronous:
             LOGGER.info("Setting up asynchronous plotting ...")
             self.plot = self._async_plot
             self._executor = ThreadPoolExecutor(max_workers=1)
-            self.loop_thread = threading.Thread(
-                target=self.start_event_loop, daemon=True
-            )
+            self.loop_thread = threading.Thread(target=self.start_event_loop, daemon=True)
             self.loop_thread.start()
 
     def start_event_loop(self) -> None:
@@ -133,9 +129,7 @@ class BasePlotCallback(Callback, ABC):
                 logger.experiment.log({exp_log_tag: wandb.Image(fig)})
             elif logger and logger.logger_name == "mlflow":
                 run_id = logger.run_id
-                logger.experiment.log_artifact(
-                    run_id, str(save_path), artifact_path=self.artifact_subfolder
-                )
+                logger.experiment.log_artifact(run_id, str(save_path), artifact_path=self.artifact_subfolder)
 
         plt.close(fig)  # cleanup
 
@@ -164,16 +158,12 @@ class BasePlotCallback(Callback, ABC):
 
             if self.config.diagnostics.log.mlflow.enabled:
                 run_id = logger.run_id
-                logger.experiment.log_artifact(
-                    run_id, str(save_path), artifact_path=self.artifact_subfolder
-                )
+                logger.experiment.log_artifact(run_id, str(save_path), artifact_path=self.artifact_subfolder)
 
         plt.close(fig)  # cleanup
 
     @rank_zero_only
-    def _plot_with_error_catching(
-        self, trainer: pl.Trainer, args: Any, kwargs: Any
-    ) -> None:
+    def _plot_with_error_catching(self, trainer: pl.Trainer, args: Any, kwargs: Any) -> None:
         """To execute the plot function but ensuring we catch any errors."""
         try:
             self._plot(trainer, *args, **kwargs)
@@ -183,9 +173,7 @@ class BasePlotCallback(Callback, ABC):
             LOGGER.exception(traceback.format_exc())
             os._exit(1)  # to force exit when sanity val steps are used
 
-    def teardown(
-        self, trainer: pl.Trainer, pl_module: pl.LightningModule, stage: str
-    ) -> None:
+    def teardown(self, trainer: pl.Trainer, pl_module: pl.LightningModule, stage: str) -> None:
         """Teardown the callback."""
         del trainer, pl_module, stage  # unused
         LOGGER.info("Teardown of the Plot Callback ...")
@@ -200,9 +188,7 @@ class BasePlotCallback(Callback, ABC):
             self.loop_thread._stop()
             self.loop_thread._delete()
 
-    def apply_output_mask(
-        self, pl_module: pl.LightningModule, data: torch.Tensor
-    ) -> torch.Tensor:
+    def apply_output_mask(self, pl_module: pl.LightningModule, data: torch.Tensor) -> torch.Tensor:
         if hasattr(pl_module, "output_mask") and pl_module.output_mask is not None:
             # Fill with NaNs values where the mask is False
             data[:, :, :, ~pl_module.output_mask, :] = np.nan
@@ -247,9 +233,7 @@ class BasePlotCallback(Callback, ABC):
         the background thread, we need to schedule the plot function to run in that
         loop.
         """
-        asyncio.run_coroutine_threadsafe(
-            self.submit_plot(trainer, *args, **kwargs), self.loop
-        )
+        asyncio.run_coroutine_threadsafe(self.submit_plot(trainer, *args, **kwargs), self.loop)
 
 
 class BasePerBatchPlotCallback(BasePlotCallback):
@@ -273,25 +257,16 @@ class BasePerBatchPlotCallback(BasePlotCallback):
 
         """
         super().__init__(config, dataset_names=dataset_names)
-        self.every_n_batches = (
-            every_n_batches or self.config.diagnostics.plot.frequency.batch
-        )
+        self.every_n_batches = every_n_batches or self.config.diagnostics.plot.frequency.batch
 
-        if (
-            self.config.diagnostics.plot.asynchronous
-            and self.config.dataloader.read_group_size > 1
-        ):
-            LOGGER.warning(
-                "Asynchronous plotting can result in NCCL timeouts with reader_group_size > 1."
-            )
+        if self.config.diagnostics.plot.asynchronous and self.config.dataloader.read_group_size > 1:
+            LOGGER.warning("Asynchronous plotting can result in NCCL timeouts with reader_group_size > 1.")
 
     def on_validation_batch_end(
         self,
         trainer: pl.Trainer,
         pl_module: pl.LightningModule,
-        output: tuple[
-            torch.Tensor, list[dict[str, torch.Tensor]] | dict[str, torch.Tensor]
-        ],
+        output: tuple[torch.Tensor, list[dict[str, torch.Tensor]] | dict[str, torch.Tensor]],
         batch: dict[str, torch.Tensor],
         batch_idx: int,
         **kwargs,
@@ -312,9 +287,7 @@ class BasePerBatchPlotCallback(BasePlotCallback):
                 output[0],
                 [
                     {
-                        dataset_name: pl_module.allgather_batch(
-                            dataset_pred, dataset_name
-                        )
+                        dataset_name: pl_module.allgather_batch(dataset_pred, dataset_name)
                         for dataset_name, dataset_pred in pred.items()
                     }
                     for pred in preds
@@ -325,17 +298,13 @@ class BasePerBatchPlotCallback(BasePlotCallback):
             # but internal ones would be on the cpu), The lines below allow to address this problem
             self.post_processors = copy.deepcopy(pl_module.model.post_processors)
             for dataset_name in self.post_processors:
-                for post_processor in self.post_processors[
-                    dataset_name
-                ].processors.values():
+                for post_processor in self.post_processors[dataset_name].processors.values():
                     if hasattr(post_processor, "nan_locations"):
                         post_processor.nan_locations = pl_module.allgather_batch(
                             post_processor.nan_locations,
                             dataset_name,
                         )
-                self.post_processors[dataset_name] = self.post_processors[
-                    dataset_name
-                ].cpu()
+                self.post_processors[dataset_name] = self.post_processors[dataset_name].cpu()
 
             self.plot(
                 trainer,
@@ -369,9 +338,7 @@ class BasePerEpochPlotCallback(BasePlotCallback):
             If not given, uses default from config at `diagnostics.plot.frequency.epoch`
         """
         super().__init__(config, dataset_names=dataset_names)
-        self.every_n_epochs = (
-            every_n_epochs or self.config.diagnostics.plot.frequency.epoch
-        )
+        self.every_n_epochs = every_n_epochs or self.config.diagnostics.plot.frequency.epoch
 
     @rank_zero_only
     def on_validation_epoch_end(
@@ -409,18 +376,12 @@ class GraphTrainableFeaturesPlot(BasePerEpochPlotCallback):
         every_n_epochs: int | None, optional
             Override for frequency to plot at, by default None
         """
-        super().__init__(
-            config, dataset_names=dataset_names, every_n_epochs=every_n_epochs
-        )
+        super().__init__(config, dataset_names=dataset_names, every_n_epochs=every_n_epochs)
         self.q_extreme_limit = config.get("quantile_edges_to_represent", 0.05)
 
-    def get_node_trainable_tensors(
-        self, node_attributes: NamedNodesAttributes
-    ) -> dict[str, torch.Tensor]:
+    def get_node_trainable_tensors(self, node_attributes: NamedNodesAttributes) -> dict[str, torch.Tensor]:
         return {
-            name: tt.trainable
-            for name, tt in node_attributes.trainable_tensors.items()
-            if tt.trainable is not None
+            name: tt.trainable for name, tt in node_attributes.trainable_tensors.items() if tt.trainable is not None
         }
 
     @staticmethod
@@ -469,9 +430,7 @@ class GraphTrainableFeaturesPlot(BasePerEpochPlotCallback):
             ),
         )
         for provider_name, edge_key in provider_specs:
-            provider = self._resolve_edge_provider(
-                getattr(model, provider_name, None), dataset_name
-            )
+            provider = self._resolve_edge_provider(getattr(model, provider_name, None), dataset_name)
             if self._has_trainable_edge_params(provider):
                 trainable_modules[edge_key] = provider
 
@@ -486,18 +445,11 @@ class GraphTrainableFeaturesPlot(BasePerEpochPlotCallback):
         epoch: int,
     ) -> None:
         _ = epoch
-        model = (
-            pl_module.model.module.model
-            if hasattr(pl_module.model, "module")
-            else pl_module.model.model
-        )
+        model = pl_module.model.module.model if hasattr(pl_module.model, "module") else pl_module.model.model
         node_trainable_tensors = self.get_node_trainable_tensors(model.node_attributes)
 
         for dataset_name in dataset_names:
-            if (
-                dataset_name in node_trainable_tensors
-                and node_trainable_tensors[dataset_name] is not None
-            ):
+            if dataset_name in node_trainable_tensors and node_trainable_tensors[dataset_name] is not None:
                 fig = plot_graph_node_features(
                     model.node_attributes,
                     node_trainable_tensors,
@@ -520,11 +472,7 @@ class GraphTrainableFeaturesPlot(BasePerEpochPlotCallback):
                 LOGGER.warning(
                     "Edge trainable features are not supported for Hierarchical models, skipping plot generation.",
                 )
-            elif len(
-                edge_trainable_modules := self.get_edge_trainable_modules(
-                    model, dataset_name
-                )
-            ):
+            elif len(edge_trainable_modules := self.get_edge_trainable_modules(model, dataset_name)):
                 fig = plot_graph_edge_features(
                     model.node_attributes,
                     edge_trainable_modules,
@@ -563,9 +511,7 @@ class PlotLoss(BasePerBatchPlotCallback):
         every_n_batches : int, optional
             Override for batch frequency, by default None
         """
-        super().__init__(
-            config, every_n_batches=every_n_batches, dataset_names=dataset_names
-        )
+        super().__init__(config, every_n_batches=every_n_batches, dataset_names=dataset_names)
         self.parameter_groups = parameter_groups
         self.dataset_names = dataset_names if dataset_names is not None else ["data"]
         if self.parameter_groups is None:
@@ -615,18 +561,12 @@ class PlotLoss(BasePerBatchPlotCallback):
             # join parameter groups that appear only once and are not given in config-file
             unique_group_list = np.array(
                 [
-                    (
-                        unique_group_list[tn]
-                        if count > 1 or unique_group_list[tn] in self.parameter_groups
-                        else "other"
-                    )
+                    (unique_group_list[tn] if count > 1 or unique_group_list[tn] in self.parameter_groups else "other")
                     for tn, count in enumerate(group_counts)
                 ],
             )
             parameters_to_groups = unique_group_list[group_inverse]
-            unique_group_list, group_inverse = np.unique(
-                parameters_to_groups, return_inverse=True
-            )
+            unique_group_list, group_inverse = np.unique(parameters_to_groups, return_inverse=True)
 
             # sort parameters by groups
             sort_by_parameter_group = np.argsort(group_inverse, kind="stable")
@@ -643,9 +583,7 @@ class PlotLoss(BasePerBatchPlotCallback):
         # get a color per group and project to parameter list
         cmap = "tab10" if len(unique_group_list) <= 10 else "tab20"
         if len(unique_group_list) > 20:
-            LOGGER.warning(
-                "More than 20 groups detected, but colormap has only 20 colors."
-            )
+            LOGGER.warning("More than 20 groups detected, but colormap has only 20 colors.")
         # if all groups have count 1 use black color
         bar_color_per_group = (
             np.tile("k", len(group_counts))
@@ -668,11 +606,7 @@ class PlotLoss(BasePerBatchPlotCallback):
                     # linebreak after 50 characters
                     text_label += "\n"
                     string_length = 0
-            legend_patches.append(
-                mpatches.Patch(
-                    color=bar_color_per_group[group_idx], label=text_label[:-2]
-                )
-            )
+            legend_patches.append(mpatches.Patch(color=bar_color_per_group[group_idx], label=text_label[:-2]))
 
         return (
             sort_by_parameter_group,
@@ -702,16 +636,10 @@ class PlotLoss(BasePerBatchPlotCallback):
 
             data_indices = pl_module.data_indices[dataset_name]
             parameter_names = list[str](data_indices.model.output.name_to_index.keys())
-            parameter_positions = list[int](
-                data_indices.model.output.name_to_index.values()
-            )
+            parameter_positions = list[int](data_indices.model.output.name_to_index.values())
             # reorder parameter_names by position
-            parameter_names = [
-                parameter_names[i] for i in np.argsort(parameter_positions)
-            ]
-            metadata_variables = pl_module.model.metadata["dataset"].get(
-                "variables_metadata"
-            )
+            parameter_names = [parameter_names[i] for i in np.argsort(parameter_positions)]
+            metadata_variables = pl_module.model.metadata["dataset"].get("variables_metadata")
 
             # Sort the list using the custom key
             argsort_indices = argsort_variablename_variablelevel(
@@ -743,15 +671,11 @@ class PlotLoss(BasePerBatchPlotCallback):
                     .numpy(),
                 )
 
-                sort_by_parameter_group, colors, xticks, legend_patches = (
-                    self.sort_and_color_by_parameter_group(
-                        parameter_names,
-                    )
+                sort_by_parameter_group, colors, xticks, legend_patches = self.sort_and_color_by_parameter_group(
+                    parameter_names,
                 )
                 loss = loss[argsort_indices]
-                fig = plot_loss(
-                    loss[sort_by_parameter_group], colors, xticks, legend_patches
-                )
+                fig = plot_loss(loss[sort_by_parameter_group], colors, xticks, legend_patches)
 
                 self._output_figure(
                     logger,
@@ -780,8 +704,7 @@ class PlotLoss(BasePerBatchPlotCallback):
                     if (
                         hasattr(leaf_loss, "scaler")
                         and hasattr(leaf_loss.scaler, "nan_mask_weights")
-                        and leaf_loss.scaler.nan_mask_weights.shape[pl_module.grid_dim]
-                        != 1
+                        and leaf_loss.scaler.nan_mask_weights.shape[pl_module.grid_dim] != 1
                     ):
                         leaf_loss.scaler.nan_mask_weights = pl_module.allgather_batch(
                             leaf_loss.scaler.nan_mask_weights,
@@ -808,20 +731,12 @@ class BasePlotAdditionalMetrics(BasePerBatchPlotCallback):
         focus_area: list[dict] | None = None,
     ) -> None:
 
-        super().__init__(
-            config, every_n_batches=every_n_batches, dataset_names=dataset_names
-        )
+        super().__init__(config, every_n_batches=every_n_batches, dataset_names=dataset_names)
 
         # Build focus mask
         self.focus_mask = build_spatial_mask(
-            node_attribute_name=(
-                focus_area.get("mask_attr_name", None)
-                if focus_area is not None
-                else None
-            ),
-            latlon_bbox=(
-                focus_area.get("latlon_bbox", None) if focus_area is not None else None
-            ),
+            node_attribute_name=(focus_area.get("mask_attr_name", None) if focus_area is not None else None),
+            latlon_bbox=(focus_area.get("latlon_bbox", None) if focus_area is not None else None),
             name=focus_area.get("name", None) if focus_area is not None else None,
         )
 
@@ -858,12 +773,8 @@ class BasePlotAdditionalMetrics(BasePerBatchPlotCallback):
             self.latlons = {}
 
         if dataset_name not in self.latlons:
-            self.latlons[dataset_name] = pl_module.model.model._graph_data[
-                dataset_name
-            ].x.detach()
-            self.latlons[dataset_name] = np.rad2deg(
-                self.latlons[dataset_name].cpu().numpy()
-            )
+            self.latlons[dataset_name] = pl_module.model.model._graph_data[dataset_name].x.detach()
+            self.latlons[dataset_name] = np.rad2deg(self.latlons[dataset_name].cpu().numpy())
 
         # All tasks return (loss, metrics, list of per-step dicts) from _step; on_validation_batch_end enforces list.
         assert isinstance(
@@ -887,18 +798,16 @@ class BasePlotAdditionalMetrics(BasePerBatchPlotCallback):
         data = self.post_processors[dataset_name](input_tensor)[self.sample_idx]
         output_tensor = torch.cat(
             tuple(
-                self.post_processors[dataset_name](
-                    x[dataset_name][:, ...].detach().cpu(), in_place=False
-                )[self.sample_idx : self.sample_idx + 1]
+                self.post_processors[dataset_name](x[dataset_name][:, ...].detach().cpu(), in_place=False)[
+                    self.sample_idx : self.sample_idx + 1
+                ]
                 for x in outputs[1]
             ),
         )
 
         output_tensor = pl_module.plot_adapter.prepare_plot_output_tensor(output_tensor)
         output_tensor = (
-            pl_module.output_mask[dataset_name]
-            .apply(output_tensor, dim=pl_module.grid_dim, fill_value=np.nan)
-            .numpy()
+            pl_module.output_mask[dataset_name].apply(output_tensor, dim=pl_module.grid_dim, fill_value=np.nan).numpy()
         )
         data[1:, ...] = pl_module.output_mask[dataset_name].apply(
             data[1:, ...],
