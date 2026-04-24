@@ -44,7 +44,7 @@ optimizer:
     betas: [0.9, 0.95]
 
 # select model
-model_task: anemoi.training.train.tasks.LoRAGraphForecaster
+training_method: anemoi.training.train.methods.LoRASingleTraining
 
 lora_config:
   r: 8
