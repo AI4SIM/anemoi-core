@@ -552,7 +552,7 @@ def diffusion_config(
 @pytest.fixture
 def lora_config(
     testing_modifications_with_temp_dir: DictConfig,
-    get_tmp_paths: GetTmpPaths,
+    get_tmp_path: GetTmpPath,
     get_test_data: GetTestData,
     migrator: Migrator,
 ) -> tuple[DictConfig, str]:
@@ -567,8 +567,8 @@ def lora_config(
     OmegaConf.resolve(cfg)
 
     existing_ckpt = get_test_data(
-            "anemoi-integration-tests/training/checkpoints/testing-checkpoint-gnn-global-2025-07-31.ckpt",
-        )
+        "anemoi-integration-tests/training/checkpoints/testing-checkpoint-gnn-global-2025-07-31.ckpt",
+    )
     _, new_ckpt, _ = migrator.sync(existing_ckpt)
 
     checkpoint_dir = Path(cfg.system.output.root + "/" + cfg.system.output.checkpoints.root + "/dummy_id")

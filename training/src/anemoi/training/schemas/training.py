@@ -492,9 +492,7 @@ class DiffusionTendencyTrainingSchema(BaseTrainingSchema):
 
 
 class LoRASingleTrainingSchema(BaseTrainingSchema):
-    training_method: Literal["anemoi.training.train.methods.LoRASingleTraining"] = Field(
-        ...,
-        alias="training_method")
+    training_method: Literal["anemoi.training.train.methods.LoRASingleTraining"] = Field(..., alias="training_method")
     "Training objective."
     lora_config: LoRAConfig
     "Configuration for the LoRA adapter."

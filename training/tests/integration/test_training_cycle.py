@@ -360,7 +360,7 @@ def test_training_cycle_lora(lora_config: tuple[DictConfig, list[str]], get_test
     assert (
         len(run_dirs) == 1
     ), f"Expected exactly one run_id directory, found {len(run_dirs)}: {[d.name for d in run_dirs]}"
-        
+
     checkpoint_dir = run_dirs[0]
     assert len(list(checkpoint_dir.glob("anemoi-by_epoch-*.ckpt"))) == 2, "Expected 2 checkpoints after first run"
 

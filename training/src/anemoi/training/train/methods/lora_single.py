@@ -19,10 +19,12 @@ from peft import get_peft_model
 from anemoi.training.train.methods.single import SingleTraining
 
 if TYPE_CHECKING:
+    import torch
     from torch_geometric.data import HeteroData
 
     from anemoi.models.data_indices.collection import IndexCollection
     from anemoi.training.schemas.base_schema import BaseSchema
+    from training.src.anemoi.training.tasks.base import BaseTask
 
 
 LOGGER = logging.getLogger(__name__)
@@ -57,16 +59,16 @@ class LoRASingleTraining(SingleTraining):
 
         self.lora_config = LoraConfig(**config.model_dump(by_alias=True).training.lora_config)
 
-    def on_load_checkpoint(self, checkpoint) -> None:
+    def on_load_checkpoint(self, checkpoint: torch.nn.Module) -> None:
         self._update_checkpoint_state_dict_for_load(checkpoint)
 
         self._ckpt_model_name_to_index = {
             dataset_name: data_indices.name_to_index
             for dataset_name, data_indices in checkpoint["hyper_parameters"]["data_indices"].items()
         }
-        if 'LoRASingleTraining' in checkpoint['hyper_parameters']['config'].training.training_method:
+        if "LoRASingleTraining" in checkpoint["hyper_parameters"]["config"].training.training_method:
             self._inject_lora_adapters()
-    
+
     def on_checkpoint_loaded(self) -> None:
         if not isinstance(self.model, PeftModel):
             self._inject_lora_adapters()
