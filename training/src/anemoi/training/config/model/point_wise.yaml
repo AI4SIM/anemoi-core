@@ -5,6 +5,8 @@ keep_batch_sharded: True
 
 model:
   _target_: anemoi.models.models.AnemoiModelEncProcDec
+  hidden_nodes_name: "data"
+  latent_skip: True
 
 layer_kernels:
   # The layer_kernels can be adjusted per model component, but are defined here for convenience.
@@ -23,26 +25,29 @@ layer_kernels:
 
 processor:
   _target_: anemoi.models.layers.processor.PointWiseMLPProcessor
-  trainable_size: ${model.trainable_parameters.hidden2hidden}
-  sub_graph_edge_attributes: ${model.attributes.edges}
   num_layers: 16
   num_chunks: 2
-  mlp_hidden_ratio: 4 # GraphTransformer or Transformer only
+  mlp_hidden_ratio: 4
   cpu_offload: ${model.cpu_offload}
+  gradient_checkpointing: True
   layer_kernels: ${model.layer_kernels}
 
 encoder:
-  _target_: anemoi.models.layers.mapper.GraphTransformerForwardMapper
-  sub_graph_edge_attributes: ${model.attributes.edges}
+  _target_: anemoi.models.layers.mapper.PointWiseForwardMapper
   cpu_offload: ${model.cpu_offload}
+  gradient_checkpointing: True
   layer_kernels: ${model.layer_kernels}
 
 decoder:
-  _target_: anemoi.models.layers.mapper.GraphTransformerBackwardMapper
-  sub_graph_edge_attributes: ${model.attributes.edges}
+  _target_: anemoi.models.layers.mapper.PointWiseBackwardMapper
   initialise_data_extractor_zero: False
   cpu_offload: ${model.cpu_offload}
+  gradient_checkpointing: True
   layer_kernels: ${model.layer_kernels}
+
+residual:
+  _target_: anemoi.models.layers.residual.SkipConnection # options: SkipConnection, TruncatedConnection
+  step: -1 # use the latest step as skip connection
 
 output_mask:
   _target_: anemoi.training.utils.masks.NoOutputMask

@@ -15,6 +15,7 @@ from unittest.mock import MagicMock
 import pytest
 import torch
 
+from anemoi.models.layers.block import PointWiseMLPProcessorBlock
 from anemoi.models.layers.processor import PointWiseMLPProcessor
 from anemoi.models.layers.utils import load_layer_kernels
 from anemoi.utils.config import DotDict
@@ -40,8 +41,8 @@ def pointwisemlp_processor_init():
 
 
 @pytest.fixture
-def pointwisemlp_processor(pointwisemlp_processor_init):
-    return PointWiseMLPProcessor(**asdict(pointwisemlp_processor_init))
+def pointwisemlp_processor(pointwisemlp_processor_init, device):
+    return PointWiseMLPProcessor(**asdict(pointwisemlp_processor_init)).to(device)
 
 
 def test_pointwisemlp_processor_init(pointwisemlp_processor, pointwisemlp_processor_init):
@@ -54,11 +55,17 @@ def test_pointwisemlp_processor_init(pointwisemlp_processor, pointwisemlp_proces
     )
 
 
+def test_pointwisemlp_processor_uses_only_pointwise_blocks(pointwisemlp_processor):
+    assert all(isinstance(block, PointWiseMLPProcessorBlock) for block in pointwisemlp_processor.proc)
+
+
 @pytest.fixture(params=[0.1, None])
 def test_pointwisemlp_processor_with_sharding_dropout_forward(pointwisemlp_processor, pointwisemlp_processor_init):
     gridsize = 100
     batch_size = 1
-    x = torch.rand(gridsize, pointwisemlp_processor_init.num_channels)
+    x = torch.rand(
+        gridsize, pointwisemlp_processor_init.num_channels, device=next(pointwisemlp_processor.parameters()).device
+    )
     shard_shapes = [list(x.shape)]
 
     # Mock distributed group
@@ -77,14 +84,16 @@ def test_pointwisemlp_processor_with_sharding_dropout_forward(pointwisemlp_proce
 def test_pointwisemlp_processor_forward(pointwisemlp_processor, pointwisemlp_processor_init):
     gridsize = 100
     batch_size = 1
-    x = torch.rand(gridsize, pointwisemlp_processor_init.num_channels)
+    x = torch.rand(
+        gridsize, pointwisemlp_processor_init.num_channels, device=next(pointwisemlp_processor.parameters()).device
+    )
     shard_shapes = [list(x.shape)]
 
     output = pointwisemlp_processor.forward(x, batch_size, shard_shapes)
     assert output.shape == x.shape
 
     # Generate dummy target and loss function
-    target = torch.randn(gridsize, pointwisemlp_processor_init.num_channels)
+    target = torch.randn(gridsize, pointwisemlp_processor_init.num_channels, device=output.device)
     loss_fn = torch.nn.MSELoss()
 
     # Compute loss

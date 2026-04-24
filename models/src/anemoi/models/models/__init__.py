@@ -8,12 +8,14 @@
 # nor does it submit to any jurisdiction.
 
 from .base import BaseGraphModel
-from .diffusion_encoder_processor_decoder import AnemoiDiffusionModelEncProcDec
-from .diffusion_encoder_processor_decoder import AnemoiDiffusionTendModelEncProcDec
 from .encoder_processor_decoder import AnemoiModelEncProcDec
 from .ens_encoder_processor_decoder import AnemoiEnsModelEncProcDec
 from .hierarchical import AnemoiModelEncProcDecHierarchical
-from .interpolator import AnemoiModelEncProcDecInterpolator
+
+from .autoencoder import AnemoiModelAutoEncoder  # isort: skip
+from .hierarchical_autoencoder import AnemoiModelHierarchicalAutoEncoder  # isort: skip
+from .diffusion_encoder_processor_decoder import AnemoiDiffusionModelEncProcDec  # isort: skip
+from .diffusion_encoder_processor_decoder import AnemoiDiffusionTendModelEncProcDec  # isort: skip
 
 __all__ = [
     "BaseGraphModel",
@@ -22,5 +24,7 @@ __all__ = [
     "AnemoiDiffusionModelEncProcDec",
     "AnemoiDiffusionTendModelEncProcDec",
     "AnemoiModelEncProcDecHierarchical",
-    "AnemoiModelEncProcDecInterpolator",
+    "AnemoiEnsModelEncProcDec",
+    "AnemoiModelAutoEncoder",
+    "AnemoiModelHierarchicalAutoEncoder",
 ]
