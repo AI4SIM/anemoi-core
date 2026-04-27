@@ -443,12 +443,12 @@ class BaseTrainingModule(pl.LightningModule, ABC):
         }
 
     def on_checkpoint_loaded(self) -> None:
-        """Called by anemoi-training once a model has been loaded from a checkpoint, either via 
-            transfer learning or weights only setting. Override to perform actions on the model
-            once the checkpoint has been loaded.
+        """Called once a model has been loaded from a checkpoint.
+
+        Override to perform actions on the model. This applies to both transfer
+        learning and weights-only settings.
         """
-        pass
-    
+
     def _update_scaler_for_dataset(
         self,
         name: str,

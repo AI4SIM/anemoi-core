@@ -567,7 +567,7 @@ def lora_config(
     OmegaConf.resolve(cfg)
 
     existing_ckpt = get_test_data(
-        "anemoi-integration-tests/training/checkpoints/testing-checkpoint-gnn-global-2025-07-31.ckpt",
+        "anemoi-integration-tests/training/checkpoints/testing-checkpoint-gnn-global-2026-03-06.ckpt",
     )
     _, new_ckpt, _ = migrator.sync(existing_ckpt)
 
