@@ -28,7 +28,7 @@ class WeightedCharbonnierLoss(MSELoss):
 
     def __init__(
         self,
-        epsilon: float = 1e-6,
+        epsilon: float = 1e-3,
         ignore_nans: bool = False,
         **kwargs,
     ) -> None:
@@ -37,7 +37,7 @@ class WeightedCharbonnierLoss(MSELoss):
         Parameters
         ----------
         epsilon : float, optional
-            Small constant to avoid division by zero, by default 1e-6
+            Small constant to avoid division by zero, by default 1e-3
         """
         super().__init__(ignore_nans=ignore_nans, **kwargs)
         self.epsilon = epsilon

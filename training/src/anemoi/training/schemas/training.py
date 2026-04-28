@@ -321,7 +321,7 @@ class HuberLossSchema(BaseLossSchema):
 
 
 class WeightedCharbonnierLossSchema(BaseLossSchema):
-    epsilon: float = 1e-6
+    epsilon: float = 1e-3
     "Small constant to avoid division by zero in Charbonnier loss."
 
 
