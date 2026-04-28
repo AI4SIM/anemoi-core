@@ -351,7 +351,14 @@ def test_config_validation_diffusion(diffusion_config: tuple[DictConfig, str]) -
 def test_training_cycle_lora(lora_config: tuple[DictConfig, list[str]], get_test_archive: GetTestArchive) -> None:
     cfg, url = lora_config
     get_test_archive(url)
-    AnemoiTrainer(cfg).train()
+    trainer = AnemoiTrainer(cfg)
+    has_lora = False
+    for name, _param in trainer.model.named_parameters():
+        if "lora_A" in name:
+            has_lora = True
+            break
+    assert has_lora, "Expected model to have LoRA embeddings for LoRA training"
+    trainer.train()
 
     output_dir = Path(cfg.system.output.root + "/" + cfg.system.output.checkpoints.root)
     assert output_dir.exists(), f"Checkpoint directory not found at: {output_dir}"
@@ -366,7 +373,14 @@ def test_training_cycle_lora(lora_config: tuple[DictConfig, list[str]], get_test
 
     cfg.training.run_id = checkpoint_dir.name
     cfg.training.max_epochs = cfg.training.max_epochs + 3
-    AnemoiTrainer(cfg).train()
+    trainer = AnemoiTrainer(cfg)
+    has_lora = False
+    for name, _param in trainer.model.named_parameters():
+        if "lora_A" in name:
+            has_lora = True
+            break
+    assert has_lora, "Expected model to have LoRA embeddings for LoRA training"
+    trainer.train()
 
 
 def test_config_validation_lora(lora_config: tuple[DictConfig, str]) -> None:

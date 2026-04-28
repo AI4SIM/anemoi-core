@@ -575,6 +575,9 @@ def lora_config(
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     torch.save(new_ckpt, checkpoint_dir / "last.ckpt")
 
+    cfg.diagnostics.plot.callbacks = []  # remove plotting callbacks as they are tested in global training cycle test
+    cfg.diagnostics.callbacks = []  # remove RolloutEval callback as it is tested in global training cycle test
+
     return cfg, url_dataset
 
 

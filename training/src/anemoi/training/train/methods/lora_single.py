@@ -57,7 +57,7 @@ class LoRASingleTraining(SingleTraining):
             supporting_arrays=supporting_arrays,
         )
 
-        self.lora_config = LoraConfig(**config.model_dump(by_alias=True).training.lora_config)
+        self.lora_config = LoraConfig(**config.training.lora_config)
 
     def on_load_checkpoint(self, checkpoint: torch.nn.Module) -> None:
         self._update_checkpoint_state_dict_for_load(checkpoint)
