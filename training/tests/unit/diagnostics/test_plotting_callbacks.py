@@ -234,7 +234,9 @@ def _make_pl_module_forecaster(
     pl_module.model.model._graph_data = {"data": MagicMock()}
     pl_module.model.model._graph_data["data"].__getitem__ = lambda _self, _k: MagicMock()
     graph_data = pl_module.model.model._graph_data["data"]
-    graph_data.__getitem__ = lambda k: torch.zeros(nlatlon, 2) if k == pl_module.model.model._graph_name_data else None
+    graph_data.__getitem__ = lambda k: (
+        torch.zeros(nlatlon, 2) if k == pl_module.model.model._graph_name_data else None
+    )
 
     # Use no-op output_mask
     pl_module.output_mask = {"data": NoOutputMask()}
@@ -322,7 +324,13 @@ def test_process_forecaster_output_shapes():
     # data: one sample from input_tensor (4 time steps); shape (time_steps, n_ens, nlatlon, nvar)
     assert data.shape == (1 + total_targets + 1, n_ens, nlatlon, nvar), data.shape
     # output_tensor: (output_times, n_step_output, n_ens, nlatlon, nvar) after mask
-    assert output_tensor.shape == (output_times, n_step_output, n_ens, nlatlon, nvar), output_tensor.shape
+    assert output_tensor.shape == (
+        output_times,
+        n_step_output,
+        n_ens,
+        nlatlon,
+        nvar,
+    ), output_tensor.shape
 
 
 def test_process_temporal_downscaler_output_shapes():
@@ -356,7 +364,13 @@ def test_process_temporal_downscaler_output_shapes():
     data, output_tensor = callback.process(pl_module, "data", outputs, batch)
 
     assert data.shape == (1 + total_targets + 1, n_ens, nlatlon, nvar), data.shape
-    assert output_tensor.shape == (pl_module.task.num_output_timesteps, 1, n_ens, nlatlon, nvar), output_tensor.shape
+    assert output_tensor.shape == (
+        pl_module.task.num_output_timesteps,
+        1,
+        n_ens,
+        nlatlon,
+        nvar,
+    ), output_tensor.shape
 
 
 def test_process_temporal_downscaler_multi_out_squeeze():
@@ -391,7 +405,13 @@ def test_process_temporal_downscaler_multi_out_squeeze():
 
     # output_tensor: (num_output_timesteps, 1, n_ens, nlatlon, nvar) - 5D
     assert output_tensor.ndim == 5, output_tensor.shape
-    assert output_tensor.shape == (pl_module.task.num_output_timesteps, 1, 1, nlatlon, nvar), output_tensor.shape
+    assert output_tensor.shape == (
+        pl_module.task.num_output_timesteps,
+        1,
+        1,
+        nlatlon,
+        nvar,
+    ), output_tensor.shape
 
 
 # ---- PlotLoss ----
@@ -436,7 +456,24 @@ def test_plot_loss_sort_and_color_by_parameter_group_with_groups():
         },
     )
     # >15 parameters to trigger the grouping branch (<=15 keeps each param as its own group)
-    parameter_names = ["tp", "sp", "p0", "p1", "p2", "p3", "p4", "p5", "u10", "v10", "w0", "w1", "w2", "w3", "w4", "w5"]
+    parameter_names = [
+        "tp",
+        "sp",
+        "p0",
+        "p1",
+        "p2",
+        "p3",
+        "p4",
+        "p5",
+        "u10",
+        "v10",
+        "w0",
+        "w1",
+        "w2",
+        "w3",
+        "w4",
+        "w5",
+    ]
     sort_idx, colors, xticks, legend_patches = callback.sort_and_color_by_parameter_group(parameter_names)
 
     assert sort_idx.shape == (len(parameter_names),)
@@ -483,7 +520,10 @@ def test_plot_loss_temporal_downscaler():
             "anemoi.training.diagnostics.callbacks.plot.argsort_variablename_variablelevel",
             return_value=np.arange(nvar),
         ),
-        patch("anemoi.training.diagnostics.callbacks.plot.plot_loss", return_value=MagicMock()),
+        patch(
+            "anemoi.training.diagnostics.callbacks.plot.plot_loss",
+            return_value=MagicMock(),
+        ),
     ):
         callback._plot(
             trainer,
@@ -543,7 +583,10 @@ def test_plot_loss_diffusion():
             "anemoi.training.diagnostics.callbacks.plot.argsort_variablename_variablelevel",
             return_value=np.arange(nvar),
         ),
-        patch("anemoi.training.diagnostics.callbacks.plot.plot_loss", return_value=MagicMock()),
+        patch(
+            "anemoi.training.diagnostics.callbacks.plot.plot_loss",
+            return_value=MagicMock(),
+        ),
     ):
         callback._plot(
             trainer,
@@ -605,7 +648,10 @@ def test_plot_loss_forecaster():
             "anemoi.training.diagnostics.callbacks.plot.argsort_variablename_variablelevel",
             return_value=np.arange(nvar),
         ),
-        patch("anemoi.training.diagnostics.callbacks.plot.plot_loss", return_value=MagicMock()),
+        patch(
+            "anemoi.training.diagnostics.callbacks.plot.plot_loss",
+            return_value=MagicMock(),
+        ),
     ):
         callback._plot(
             trainer,
@@ -653,7 +699,10 @@ def test_plot_spectrum_temporal_downscaler():
 
     with (
         patch.object(callback, "_output_figure") as mock_output_figure,
-        patch("anemoi.training.diagnostics.callbacks.plot.plot_power_spectrum", return_value=MagicMock()),
+        patch(
+            "anemoi.training.diagnostics.callbacks.plot.plot_power_spectrum",
+            return_value=MagicMock(),
+        ),
     ):
         callback._plot(
             trainer,
@@ -700,7 +749,10 @@ def test_plot_spectrum_forecaster():
 
     with (
         patch.object(callback, "_output_figure") as mock_output_figure,
-        patch("anemoi.training.diagnostics.callbacks.plot.plot_power_spectrum", return_value=MagicMock()),
+        patch(
+            "anemoi.training.diagnostics.callbacks.plot.plot_power_spectrum",
+            return_value=MagicMock(),
+        ),
     ):
         callback._plot(
             trainer,
@@ -748,7 +800,10 @@ def test_plot_histogram_temporal_downscaler():
 
     with (
         patch.object(callback, "_output_figure") as mock_output_figure,
-        patch("anemoi.training.diagnostics.callbacks.plot.plot_histogram", return_value=MagicMock()),
+        patch(
+            "anemoi.training.diagnostics.callbacks.plot.plot_histogram",
+            return_value=MagicMock(),
+        ),
     ):
         callback._plot(
             trainer,
@@ -795,7 +850,10 @@ def test_plot_histogram_forecaster():
 
     with (
         patch.object(callback, "_output_figure") as mock_output_figure,
-        patch("anemoi.training.diagnostics.callbacks.plot.plot_histogram", return_value=MagicMock()),
+        patch(
+            "anemoi.training.diagnostics.callbacks.plot.plot_histogram",
+            return_value=MagicMock(),
+        ),
     ):
         callback._plot(
             trainer,
@@ -832,7 +890,10 @@ def test_plots_plot_loss_returns_figure():
     x = np.array([0.1, 0.2, 0.15, 0.25])
     colors = np.array(["C0", "C1", "C2", "C3"])
     xticks = {"a": 0, "b": 1, "c": 2, "d": 3}
-    legend_patches = [mpatches.Patch(color="C0", label="a"), mpatches.Patch(color="C1", label="b")]
+    legend_patches = [
+        mpatches.Patch(color="C0", label="a"),
+        mpatches.Patch(color="C1", label="b"),
+    ]
 
     fig = plot_loss(x, colors, xticks=xticks, legend_patches=legend_patches)
 
@@ -896,6 +957,70 @@ def test_plots_plot_power_spectrum_returns_figure():
 
     assert fig is not None
     assert hasattr(fig, "savefig")
+    fig.clear()
+    plt.close(fig)
+
+
+def test_plots_plot_power_spectrum_auto_selects_sht_for_global_like_domain():
+    """plot_power_spectrum uses SHT backend when the domain is detected as global."""
+    from unittest.mock import patch
+
+    import matplotlib.pyplot as plt
+
+    from anemoi.training.diagnostics.plots import plot_power_spectrum
+
+    parameters = {0: ("t2m", False)}
+    lat = np.linspace(-90, 90, 4)
+    lon = np.linspace(-180, 180, 4)
+    lat_grid, lon_grid = np.meshgrid(lat, lon, indexing="ij")
+    latlons = np.stack([lat_grid.ravel(), lon_grid.ravel()], axis=1)
+    nlatlon = latlons.shape[0]
+    rng = np.random.default_rng()
+    x = rng.standard_normal((nlatlon, 1)).astype(np.float64)
+    y_true = rng.standard_normal((nlatlon, 1)).astype(np.float64)
+    y_pred = rng.standard_normal((nlatlon, 1)).astype(np.float64)
+
+    with (
+        patch("anemoi.training.diagnostics.plots._is_global_coverage", return_value=True),
+        patch("anemoi.training.diagnostics.plots.compute_spectra", return_value=np.ones(8)) as mock_compute,
+    ):
+        fig = plot_power_spectrum(parameters, latlons, x, y_true, y_pred, min_delta=0.01)
+
+    assert fig is not None
+    assert mock_compute.call_count >= 2
+    assert all(call.kwargs["method"] == "sht" for call in mock_compute.call_args_list)
+    fig.clear()
+    plt.close(fig)
+
+
+def test_plots_plot_power_spectrum_auto_selects_dct_for_regional_domain():
+    """plot_power_spectrum uses DCT backend when the domain is detected as regional."""
+    from unittest.mock import patch
+
+    import matplotlib.pyplot as plt
+
+    from anemoi.training.diagnostics.plots import plot_power_spectrum
+
+    parameters = {0: ("t2m", False)}
+    lat = np.linspace(40, 50, 4)
+    lon = np.linspace(0, 10, 4)
+    lat_grid, lon_grid = np.meshgrid(lat, lon, indexing="ij")
+    latlons = np.stack([lat_grid.ravel(), lon_grid.ravel()], axis=1)
+    nlatlon = latlons.shape[0]
+    rng = np.random.default_rng()
+    x = rng.standard_normal((nlatlon, 1)).astype(np.float64)
+    y_true = rng.standard_normal((nlatlon, 1)).astype(np.float64)
+    y_pred = rng.standard_normal((nlatlon, 1)).astype(np.float64)
+
+    with (
+        patch("anemoi.training.diagnostics.plots._is_global_coverage", return_value=False),
+        patch("anemoi.training.diagnostics.plots.compute_spectra", return_value=np.ones(8)) as mock_compute,
+    ):
+        fig = plot_power_spectrum(parameters, latlons, x, y_true, y_pred, min_delta=0.01)
+
+    assert fig is not None
+    assert mock_compute.call_count >= 2
+    assert all(call.kwargs["method"] == "dct" for call in mock_compute.call_args_list)
     fig.clear()
     plt.close(fig)
 

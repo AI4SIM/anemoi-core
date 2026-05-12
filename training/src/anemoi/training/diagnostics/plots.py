@@ -9,6 +9,7 @@
 
 
 import logging
+from typing import Literal
 
 import datashader as dsh
 import matplotlib.cm as cm
@@ -24,6 +25,7 @@ from matplotlib.colors import Colormap
 from matplotlib.colors import Normalize
 from matplotlib.colors import TwoSlopeNorm
 from matplotlib.figure import Figure
+from scipy.fft import dctn
 from scipy.interpolate import griddata
 from torch import Tensor
 
@@ -165,15 +167,33 @@ def _interpolate_field(
         yt_field = yt
         xt_field = xt if yt is None else None
 
-    yp_i = griddata((pc_lon, pc_lat), yp_field, (grid_pc_lon, grid_pc_lat), method=method, fill_value=0.0)
+    yp_i = griddata(
+        (pc_lon, pc_lat),
+        yp_field,
+        (grid_pc_lon, grid_pc_lat),
+        method=method,
+        fill_value=0.0,
+    )
 
     yt_i = None
     xt_i = None
 
     if yt_field is not None:
-        yt_i = griddata((pc_lon, pc_lat), yt_field, (grid_pc_lon, grid_pc_lat), method=method, fill_value=0.0)
+        yt_i = griddata(
+            (pc_lon, pc_lat),
+            yt_field,
+            (grid_pc_lon, grid_pc_lat),
+            method=method,
+            fill_value=0.0,
+        )
     elif xt_field is not None:
-        xt_i = griddata((pc_lon, pc_lat), xt_field, (grid_pc_lon, grid_pc_lat), method=method, fill_value=0.0)
+        xt_i = griddata(
+            (pc_lon, pc_lat),
+            xt_field,
+            (grid_pc_lon, grid_pc_lat),
+            method=method,
+            fill_value=0.0,
+        )
 
     return yp_i, yt_i, xt_i
 
@@ -200,6 +220,13 @@ def _apply_nan_mask(
         xt_i = np.where(mask, 0.0, xt_i)
 
     return yp_i, yt_i, xt_i
+
+
+def _is_global_coverage(pc_lon: np.ndarray, pc_lat: np.ndarray) -> bool:
+    """Heuristic to detect near-global coverage on equirectangular coordinates."""
+    lon_span = np.nanmax(pc_lon) - np.nanmin(pc_lon)
+    lat_span = np.nanmax(pc_lat) - np.nanmin(pc_lat)
+    return lon_span >= (2.0 * np.pi * 0.95) and lat_span >= (np.pi * 0.95)
 
 
 def plot_power_spectrum(
@@ -247,6 +274,7 @@ def plot_power_spectrum(
         ax = [ax]
 
     pc_lon, pc_lat = Projection.equirectangular().project(latlons)
+    resolved_spectrum_method = "sht" if _is_global_coverage(pc_lon, pc_lat) else "dct"
 
     # Calculate delta_lat on the projected grid
     delta_lat = abs(np.diff(pc_lat))
@@ -296,16 +324,16 @@ def plot_power_spectrum(
         if nan_flag:
             yp_i, yt_i, xt_i = _apply_nan_mask(yp_i, yt_i, xt_i)
 
-        amplitude_p = np.array(compute_spectra(yp_i))
+        amplitude_p = np.array(compute_spectra(yp_i, method=resolved_spectrum_method))
         if yt is not None:
-            amplitude_t = np.array(compute_spectra(yt_i))
+            amplitude_t = np.array(compute_spectra(yt_i, method=resolved_spectrum_method))
             ax[plot_idx].loglog(
                 np.arange(1, amplitude_t.shape[0]),
                 amplitude_t[1 : (amplitude_t.shape[0])],
                 label="Truth (data)",
             )
         else:
-            amplitude_x = np.array(compute_spectra(xt_i))
+            amplitude_x = np.array(compute_spectra(xt_i, method=resolved_spectrum_method))
             ax[plot_idx].loglog(
                 np.arange(1, amplitude_x.shape[0]),
                 amplitude_x[1 : (amplitude_x.shape[0])],
@@ -326,27 +354,15 @@ def plot_power_spectrum(
     return fig
 
 
-def compute_spectra(field: np.ndarray) -> np.ndarray:
-    """Compute spectral variability of a field by wavenumber.
-
-    Parameters
-    ----------
-    field : np.ndarray
-        lat lon field to calculate the spectra of
-
-    Returns
-    -------
-    np.ndarray
-        spectra of field by wavenumber
-
-    """
+def _compute_spectra_sht(field: np.ndarray) -> np.ndarray:
+    """Compute spectra using spherical harmonic decomposition."""
     try:
         from pyshtools.expand import SHGLQ
         from pyshtools.expand import SHExpandGLQ
     except ImportError as e:
         error_msg = (
             "pyshtools is required to compute spherical harmonic power spectra. "
-            "It can be installed with the `plotting` dependency. `pip install anemoi-training[plotting]`.",
+            "It can be installed with the `plotting` dependency. `pip install anemoi-training[plotting]`."
         )
         raise ImportError(error_msg) from e
 
@@ -362,6 +378,65 @@ def compute_spectra(field: np.ndarray) -> np.ndarray:
 
     # sum over meridional direction
     return np.sum(coeff_amp, axis=0)
+
+
+def _compute_spectra_dct(field: np.ndarray) -> np.ndarray:
+    """Compute radial power spectrum for regional domains with 2-D DCT."""
+    field = np.array(field)
+    dct_coeffs = dctn(field, type=2, norm="ortho")
+    variance = dct_coeffs**2
+
+    ni, nj = field.shape
+    ki, kj = np.meshgrid(np.arange(ni), np.arange(nj), indexing="ij")
+    alpha = np.sqrt((ki / ni) ** 2 + (kj / nj) ** 2)
+
+    n_min = min(ni, nj)
+    k_max = n_min - 1
+    bins = np.arange(1, k_max + 2) / n_min
+    band_idx = np.digitize(alpha, bins).astype(int)
+
+    raw_var_full = np.bincount(band_idx.ravel(), weights=variance.ravel(), minlength=k_max + 2)
+    raw_var = raw_var_full[1 : k_max + 1].copy()
+
+    mode_count_full = np.bincount(band_idx.ravel(), minlength=k_max + 2)
+    mode_count = mode_count_full[1 : k_max + 1].copy()
+
+    k_g = k_max // 2
+    k_ = np.arange(1, k_g + 1, dtype=int)
+
+    alpha_p = np.zeros(k_max + 3, dtype=float)
+    alpha_p[1 : k_max + 1] = raw_var
+    var = 0.5 * alpha_p[2 * k_ - 1] + alpha_p[2 * k_] + 0.5 * alpha_p[2 * k_ + 1]
+
+    mode_counts = np.zeros(k_max + 3, dtype=float)
+    mode_counts[1 : k_max + 1] = mode_count
+    gathered_mode_count = 0.5 * mode_counts[2 * k_ - 1] + mode_counts[2 * k_] + 0.5 * mode_counts[2 * k_ + 1]
+
+    return np.where(gathered_mode_count > 0, var / gathered_mode_count, 0.0)
+
+
+def compute_spectra(field: np.ndarray, method: Literal["sht", "dct"] = "sht") -> np.ndarray:
+    """Compute spectral variability by wavenumber.
+
+    Parameters
+    ----------
+    field : np.ndarray
+        Lat-lon field on a regular 2-D grid.
+    method : {"sht", "dct"}, optional
+        Spectral transform. "sht" for global spherical harmonics,
+        "dct" for regional-domain DCT.
+
+    Returns
+    -------
+    np.ndarray
+        Power spectrum by wavenumber.
+    """
+    if method == "sht":
+        return _compute_spectra_sht(field)
+    if method == "dct":
+        return _compute_spectra_dct(field)
+    msg = f"Unknown spectra method: {method}"
+    raise ValueError(msg)
 
 
 def plot_histogram(
@@ -467,7 +542,14 @@ def plot_histogram(
             alpha=0.7,
             label="Input" if y_true is None else "Truth (data)",
         )
-        ax[plot_idx].bar(bins_yp[:-1], hist_yp, width=np.diff(bins_yp), color="red", alpha=0.7, label="Predicted")
+        ax[plot_idx].bar(
+            bins_yp[:-1],
+            hist_yp,
+            width=np.diff(bins_yp),
+            color="red",
+            alpha=0.7,
+            label="Predicted",
+        )
 
         ax[plot_idx].set_title(variable_name)
         ax[plot_idx].set_xlabel(variable_name)
@@ -845,7 +927,10 @@ def single_plot(
     dy, dx = ymax - ymin, xmax - xmin
     ybuffer, xbuffer = dy * 0.05, dx * 0.05
     if transform is not None:
-        ax.set_extent([xmin - xbuffer, xmax + xbuffer, ymin - ybuffer, ymax + ybuffer], crs=transform)
+        ax.set_extent(
+            [xmin - xbuffer, xmax + xbuffer, ymin - ybuffer, ymax + ybuffer],
+            crs=transform,
+        )
     else:
         ax.set_xlim((xmin - xbuffer, xmax + xbuffer))
         ax.set_ylim((ymin - ybuffer, ymax + ybuffer))
@@ -1073,8 +1158,20 @@ def plot_rank_histograms(
 
     for plot_idx, (_variable_idx, variable_name) in enumerate(parameters.items()):
         rh_ = rh[:, plot_idx]
-        ax[plot_idx].bar(np.arange(0, n_ens + 1), rh_ / rh_.sum(), linewidth=1, color="blue", width=0.7)
-        ax[plot_idx].hlines(rh_.mean() / rh_.sum(), xmin=-0.5, xmax=n_ens + 0.5, linestyles="--", colors="red")
+        ax[plot_idx].bar(
+            np.arange(0, n_ens + 1),
+            rh_ / rh_.sum(),
+            linewidth=1,
+            color="blue",
+            width=0.7,
+        )
+        ax[plot_idx].hlines(
+            rh_.mean() / rh_.sum(),
+            xmin=-0.5,
+            xmax=n_ens + 0.5,
+            linestyles="--",
+            colors="red",
+        )
         ax[plot_idx].set_title(f"{variable_name[0]} ranks")
         _hide_axes_ticks(ax[plot_idx])
 

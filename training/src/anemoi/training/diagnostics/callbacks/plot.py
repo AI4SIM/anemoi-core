@@ -424,7 +424,10 @@ class GraphTrainableFeaturesPlot(BasePerEpochPlotCallback):
         provider_specs = (
             ("encoder_graph_provider", (dataset_name, model._graph_name_hidden)),
             ("decoder_graph_provider", (model._graph_name_hidden, dataset_name)),
-            ("processor_graph_provider", (model._graph_name_hidden, model._graph_name_hidden)),
+            (
+                "processor_graph_provider",
+                (model._graph_name_hidden, model._graph_name_hidden),
+            ),
         )
         for provider_name, edge_key in provider_specs:
             provider = self._resolve_edge_provider(getattr(model, provider_name, None), dataset_name)
@@ -735,8 +738,8 @@ class BasePlotAdditionalMetrics(BasePerBatchPlotCallback):
 
         # Build focus mask
         self.focus_mask = build_spatial_mask(
-            node_attribute_name=focus_area.get("mask_attr_name", None) if focus_area is not None else None,
-            latlon_bbox=focus_area.get("latlon_bbox", None) if focus_area is not None else None,
+            node_attribute_name=(focus_area.get("mask_attr_name", None) if focus_area is not None else None),
+            latlon_bbox=(focus_area.get("latlon_bbox", None) if focus_area is not None else None),
             name=focus_area.get("name", None) if focus_area is not None else None,
         )
 
@@ -850,7 +853,12 @@ class PlotSample(BasePlotAdditionalMetrics):
             Batch frequency to plot at, by default None
         """
         del kwargs
-        super().__init__(config, dataset_names=dataset_names, every_n_batches=every_n_batches, focus_area=focus_area)
+        super().__init__(
+            config,
+            dataset_names=dataset_names,
+            every_n_batches=every_n_batches,
+            focus_area=focus_area,
+        )
         self.sample_idx = sample_idx
         self.parameters = parameters
 
@@ -904,7 +912,12 @@ class PlotSample(BasePlotAdditionalMetrics):
                 output_tensor,
             )
 
-            for x, y_true, y_pred, tag_suffix in pl_module.plot_adapter.iter_plot_samples(data, output_tensor):
+            for (
+                x,
+                y_true,
+                y_pred,
+                tag_suffix,
+            ) in pl_module.plot_adapter.iter_plot_samples(data, output_tensor):
                 fig = plot_predicted_multilevel_flat_sample(
                     plot_parameters_dict,
                     self.per_sample,
@@ -964,7 +977,12 @@ class PlotSpectrum(BasePlotAdditionalMetrics):
         every_n_batches : int | None, optional
             Override for batch frequency, by default None
         """
-        super().__init__(config, dataset_names=dataset_names, every_n_batches=every_n_batches, focus_area=focus_area)
+        super().__init__(
+            config,
+            dataset_names=dataset_names,
+            every_n_batches=every_n_batches,
+            focus_area=focus_area,
+        )
         self.sample_idx = sample_idx
         self.parameters = parameters
         self.min_delta = min_delta
@@ -1008,7 +1026,12 @@ class PlotSpectrum(BasePlotAdditionalMetrics):
                 for name in self.parameters
             }
 
-            for x, y_true, y_pred, tag_suffix in pl_module.plot_adapter.iter_plot_samples(data, output_tensor):
+            for (
+                x,
+                y_true,
+                y_pred,
+                tag_suffix,
+            ) in pl_module.plot_adapter.iter_plot_samples(data, output_tensor):
                 fig = plot_power_spectrum(
                     plot_parameters_dict_spectrum,
                     latlons,
@@ -1065,7 +1088,12 @@ class PlotHistogram(BasePlotAdditionalMetrics):
             Override for batch frequency, by default None
 
         """
-        super().__init__(config, dataset_names=dataset_names, every_n_batches=every_n_batches, focus_area=focus_area)
+        super().__init__(
+            config,
+            dataset_names=dataset_names,
+            every_n_batches=every_n_batches,
+            focus_area=focus_area,
+        )
         self.sample_idx = sample_idx
         self.parameters = parameters
         self.precip_and_related_fields = precip_and_related_fields
@@ -1117,7 +1145,12 @@ class PlotHistogram(BasePlotAdditionalMetrics):
                 for name in self.parameters
             }
 
-            for x, y_true, y_pred, tag_suffix in pl_module.plot_adapter.iter_plot_samples(data, output_tensor):
+            for (
+                x,
+                y_true,
+                y_pred,
+                tag_suffix,
+            ) in pl_module.plot_adapter.iter_plot_samples(data, output_tensor):
 
                 fig = plot_histogram(
                     plot_parameters_dict_histogram,
