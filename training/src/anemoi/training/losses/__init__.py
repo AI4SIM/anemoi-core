@@ -23,6 +23,7 @@ from .spectral import LogSpectralDistance
 from .spectral import SpectralCRPSLoss
 from .spectral import SpectralL2Loss
 from .variable_mapper import LossVariableMapper
+from .weighted_charbonnier import WeightedCharbonnierLoss
 from .weighted_mse import WeightedMSELoss
 
 __all__ = [
@@ -41,6 +42,7 @@ __all__ = [
     "RMSELoss",
     "SpectralCRPSLoss",
     "SpectralL2Loss",
+    "WeightedCharbonnierLoss",
     "WeightedMSELoss",
     "get_loss_function",
 ]
