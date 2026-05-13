@@ -223,7 +223,26 @@ def _apply_nan_mask(
 
 
 def _is_global_coverage(pc_lon: np.ndarray, pc_lat: np.ndarray) -> bool:
-    """Heuristic to detect near-global coverage on equirectangular coordinates."""
+    """Heuristic to detect near-global coverage on equirectangular coordinates.
+
+    Determines whether the provided longitude and latitude coordinates span
+    the majority of the globe. Returns True if coverage includes at least 95%
+    of the full longitude range (2π radians) and 95% of the full latitude range
+    (π radians), indicating global or near-global spatial coverage.
+
+    Parameters
+    ----------
+    pc_lon : np.ndarray
+        Longitude coordinates in radians, shape (n_points,)
+    pc_lat : np.ndarray
+        Latitude coordinates in radians, shape (n_points,)
+
+    Returns
+    -------
+    bool
+        True if the coordinates span >= 95% of the globe in both dimensions,
+        False otherwise.
+    """
     lon_span = np.nanmax(pc_lon) - np.nanmin(pc_lon)
     lat_span = np.nanmax(pc_lat) - np.nanmin(pc_lat)
     return lon_span >= (2.0 * np.pi * 0.95) and lat_span >= (np.pi * 0.95)
@@ -355,7 +374,19 @@ def plot_power_spectrum(
 
 
 def _compute_spectra_sht(field: np.ndarray) -> np.ndarray:
-    """Compute spectra using spherical harmonic decomposition."""
+    """Compute spectral variability of a field by wavenumber.
+
+    Parameters
+    ----------
+    field : np.ndarray
+        lat lon field to calculate the spectra of
+
+    Returns
+    -------
+    np.ndarray
+        spectra of field by wavenumber
+
+    """
     try:
         from pyshtools.expand import SHGLQ
         from pyshtools.expand import SHExpandGLQ
@@ -381,7 +412,26 @@ def _compute_spectra_sht(field: np.ndarray) -> np.ndarray:
 
 
 def _compute_spectra_dct(field: np.ndarray) -> np.ndarray:
-    """Compute radial power spectrum for regional domains with 2-D DCT."""
+    """Compute radial power spectrum for regional domains with 2-D DCT.
+
+    Implements the spectral analysis method described in:
+
+        Denis, B., J. Côté, and R. Laprise, 2002:
+        "Spectral Decomposition of Two-Dimensional Atmospheric Fields on
+        Limited-Area Domains Using the Discrete Cosine Transform (DCT)."
+        Mon. Wea. Rev., 130, 1812-1829.
+        https://doi.org/10.1175/1520-0493(2002)130<1812:SDOTDA>2.0.CO;2
+
+    Parameters
+    ----------
+    field : np.ndarray
+        lat lon field on a rectangular grid (Ni x Nj) with isotropic grid spacing.
+
+    Returns
+    -------
+    np.ndarray
+        Radial power spectrum P(k) computed from the input field.
+    """
     field = np.array(field)
     dct_coeffs = dctn(field, type=2, norm="ortho")
     variance = dct_coeffs**2
