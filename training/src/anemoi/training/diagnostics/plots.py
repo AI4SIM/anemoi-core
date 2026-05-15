@@ -295,6 +295,12 @@ def plot_power_spectrum(
     pc_lon, pc_lat = Projection.equirectangular().project(latlons)
     resolved_spectrum_method = "sht" if _is_global_coverage(pc_lon, pc_lat) else "dct"
 
+    LOGGER.info(
+        "Using %s method for power spectrum computation (%s coverage detected)",
+        resolved_spectrum_method.upper(),
+        "global" if resolved_spectrum_method == "sht" else "regional",
+    )
+
     # Calculate delta_lat on the projected grid
     delta_lat = abs(np.diff(pc_lat))
     non_zero_delta_lat = delta_lat[delta_lat != 0]
