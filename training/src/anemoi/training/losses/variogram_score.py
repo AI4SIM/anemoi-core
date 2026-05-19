@@ -35,9 +35,10 @@ Two modes are supported:
   is limited, all variable pairs are computed without sampling.
 
 - **deterministic**: pred has no ensemble dimension (M = 1). The components
-  i, j are spatial indices. The forecast variogram reduces to
-  |X_i - X_j|^p from the single prediction. Spatial pairs are
-  stochastically sampled to avoid O(d^2) cost on large grids.
+    i, j are spatial indices for the spatial term, and variable indices for
+    the cross-variable term. The forecast variogram reduces to
+    |X_i - X_j|^p from the single prediction. Spatial pairs are stochastically
+    sampled to avoid O(d^2) cost on large grids.
 
 For large grids in deterministic mode, spatial pairs can be stratified by lag
 distance on structured (2D) grids to ensure all spatial scales are represented.
@@ -91,19 +92,23 @@ class VariogramScore(BaseLoss):
 
     - "deterministic": pred has shape (bs, t, latlon, v) (no ensemble dim).
       Target has shape (bs, t, latlon, v). The components i, j are spatial
-      indices. The VS evaluates the spatial structure of the prediction for
-      each variable. Spatial pairs are stochastically sampled to avoid
-      O(d^2) cost on large grids.
+            indices for the spatial term and variable indices for the cross-variable
+            term. The VS evaluates both spatial structure (within-variable, across
+            locations) and cross-variable dependence (within-location, across
+            variables). Spatial pairs are stochastically sampled to avoid O(d^2)
+            cost on large grids.
     """
 
     def __init__(
         self,
         mode: Literal["ensemble", "deterministic"] = "ensemble",
         p: float = 0.5,
-        n_pairs: int = 50_000,
+        n_pairs: int | float = 50_000,
         n_bins: int = 20,
         max_lag_fraction: float = 0.5,
         resample_every_step: bool = True,
+        deterministic_include_cross_variable: bool = True,
+        deterministic_cross_variable_weight: float = 1.0,
         eps: float = 1e-6,
         ignore_nans: bool = False,
     ) -> None:
@@ -121,9 +126,12 @@ class VariogramScore(BaseLoss):
         p : float
             Order of the variogram. p=0.5 (default) captures non-Gaussian
             structure; p=1.0 is robust; p=2.0 is equivalent to a spectral loss.
-        n_pairs : int
-            Number of spatial pairs to sample per forward pass.
-            Only used in deterministic mode.
+                n_pairs : int | float
+                        Number of spatial pairs to sample per forward pass.
+                        - If int, interpreted as an absolute number of pairs.
+                        - If float, interpreted as a fraction of grid points and converted
+                            to ``int(n_pairs * n_grid)`` with a minimum of 1.
+                        Only used in deterministic mode.
         n_bins : int
             Number of lag bins for stratified sampling (when grid_shape provided).
             Only used in deterministic mode.
@@ -135,6 +143,15 @@ class VariogramScore(BaseLoss):
             If True (default), draw new random pairs each forward pass.
             If False, fix pairs at first call (deterministic evaluation).
             Only used in deterministic mode.
+        deterministic_include_cross_variable : bool
+            If True (default), deterministic mode includes an additional
+            cross-variable dependence term (variable-pair variogram computed
+            over the variable dimension and averaged over grid points).
+        deterministic_cross_variable_weight : float
+            Relative weight of the deterministic cross-variable term when
+            ``deterministic_include_cross_variable=True``. The final
+            deterministic score is a weighted average of spatial and
+            cross-variable terms.
         eps : float
             Small constant for numerical stability in |x|^p gradient at x=0.
         ignore_nans : bool
@@ -148,7 +165,28 @@ class VariogramScore(BaseLoss):
         self.n_bins = n_bins
         self.max_lag_fraction = max_lag_fraction
         self.resample_every_step = resample_every_step
+        self.deterministic_include_cross_variable = deterministic_include_cross_variable
+        self.deterministic_cross_variable_weight = deterministic_cross_variable_weight
         self.eps = eps
+
+        if isinstance(self.n_pairs, bool):
+            msg = "n_pairs must be an int or float, not bool."
+            raise TypeError(msg)
+        if isinstance(self.n_pairs, int):
+            if self.n_pairs <= 0:
+                msg = "n_pairs must be > 0 when provided as int."
+                raise ValueError(msg)
+        elif isinstance(self.n_pairs, float):
+            if not (0.0 < self.n_pairs <= 1.0):
+                msg = "n_pairs must be in (0, 1] when provided as float fraction."
+                raise ValueError(msg)
+        else:
+            msg = "n_pairs must be an int (count) or float (fraction)."
+            raise TypeError(msg)
+
+        if self.deterministic_cross_variable_weight < 0:
+            msg = "deterministic_cross_variable_weight must be >= 0."
+            raise ValueError(msg)
 
         # Cache for fixed spatial pairs (resample_every_step=False, deterministic mode)
         self._cached_pairs: tuple[torch.Tensor, torch.Tensor] | None = None
@@ -168,6 +206,7 @@ class VariogramScore(BaseLoss):
     def _generate_pairs_uniform(
         self,
         n_grid: int,
+        n_pairs: int,
         device: torch.device,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Generate uniform random spatial pairs (for unstructured grids).
@@ -184,8 +223,8 @@ class VariogramScore(BaseLoss):
         idx_a, idx_b : torch.Tensor, shape (n_pairs,)
             Index pairs into the spatial dimension.
         """
-        idx_a = torch.randint(0, n_grid, (self.n_pairs,), device=device)
-        idx_b = torch.randint(0, n_grid, (self.n_pairs,), device=device)
+        idx_a = torch.randint(0, n_grid, (n_pairs,), device=device)
+        idx_b = torch.randint(0, n_grid, (n_pairs,), device=device)
 
         # Avoid self-pairs
         same = idx_a == idx_b
@@ -197,6 +236,7 @@ class VariogramScore(BaseLoss):
         self,
         height: int,
         width: int,
+        n_pairs: int,
         device: torch.device,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Generate lag-stratified random spatial pairs on a 2D grid.
@@ -218,7 +258,7 @@ class VariogramScore(BaseLoss):
         idx_a, idx_b : torch.Tensor, shape (n_pairs_actual,)
             Index pairs (flattened 2D indices).
         """
-        pairs_per_bin = self.n_pairs // self.n_bins
+        pairs_per_bin = max(1, n_pairs // self.n_bins)
         max_lag = int(self.max_lag_fraction * min(height, width))
 
         bin_edges = torch.linspace(1, max_lag, self.n_bins + 1, device=device)
@@ -255,6 +295,9 @@ class VariogramScore(BaseLoss):
             # Flatten to linear indices
             all_idx_a.append(i0 * width + j0)
             all_idx_b.append(i1 * width + j1)
+
+        if len(all_idx_a) == 0:
+            return self._generate_pairs_uniform(height * width, n_pairs, device)
 
         idx_a = torch.cat(all_idx_a)
         idx_b = torch.cat(all_idx_b)
@@ -304,10 +347,12 @@ class VariogramScore(BaseLoss):
         if self._cached_pairs is not None and not self.resample_every_step:
             return self._cached_pairs
 
+        n_pairs = self.n_pairs if isinstance(self.n_pairs, int) else max(1, int(self.n_pairs * n_grid))
+
         if grid_shape is not None and len(grid_shape) == 2:
-            pairs = self._generate_pairs_stratified(grid_shape[0], grid_shape[1], device)
+            pairs = self._generate_pairs_stratified(grid_shape[0], grid_shape[1], n_pairs, device)
         else:
-            pairs = self._generate_pairs_uniform(n_grid, device)
+            pairs = self._generate_pairs_uniform(n_grid, n_pairs, device)
 
         if not self.resample_every_step:
             self._cached_pairs = pairs
@@ -410,6 +455,65 @@ class VariogramScore(BaseLoss):
         # Variogram score: squared difference, averaged over spatial pairs
         return (fcst_variogram - obs_variogram).square().mean(dim=2)  # (bs, t, v)
 
+    def _variogram_score_deterministic_cross_variable(
+        self,
+        pred: torch.Tensor,
+        target: torch.Tensor,
+        idx_a: torch.Tensor,
+        idx_b: torch.Tensor,
+    ) -> torch.Tensor:
+        """Compute deterministic variogram score over variable pairs.
+
+        This term evaluates cross-variable dependence structure in deterministic
+        mode by comparing variable-pair increments at each grid point and then
+        averaging over grid points.
+
+        Parameters
+        ----------
+        pred : torch.Tensor
+            Predicted field, shape (bs, t, latlon, v).
+        target : torch.Tensor
+            Ground truth, shape (bs, t, latlon, v).
+        idx_a : torch.Tensor
+            First variable indices, shape (n_var_pairs,).
+        idx_b : torch.Tensor
+            Second variable indices, shape (n_var_pairs,).
+
+        Returns
+        -------
+        torch.Tensor
+            Per-variable cross-variable variogram score, shape (bs, t, v).
+        """
+        # Gather variable pairs at every grid point: (bs, t, latlon, n_var_pairs)
+        tgt_a = target[:, :, :, idx_a]
+        tgt_b = target[:, :, :, idx_b]
+        obs_variogram = (tgt_a - tgt_b).abs().clamp(min=self.eps).pow(self.p)
+
+        pred_a = pred[:, :, :, idx_a]
+        pred_b = pred[:, :, :, idx_b]
+        fcst_variogram = (pred_a - pred_b).abs().clamp(min=self.eps).pow(self.p)
+
+        # Pair-wise error averaged over grid points: (bs, t, n_var_pairs)
+        pair_error = (fcst_variogram - obs_variogram).square().mean(dim=2)
+
+        # Redistribute pair errors to involved variables to obtain a per-variable term.
+        n_vars = pred.shape[-1]
+        per_var = torch.zeros(
+            (*pair_error.shape[:2], n_vars),
+            device=pred.device,
+            dtype=pair_error.dtype,
+        )
+        per_var = per_var.index_add(2, idx_a, pair_error)
+        per_var = per_var.index_add(2, idx_b, pair_error)
+
+        counts = torch.bincount(
+            torch.cat((idx_a, idx_b)),
+            minlength=n_vars,
+        ).to(device=pred.device, dtype=pair_error.dtype)
+        counts = counts.clamp_min(1.0)
+
+        return per_var / counts[None, None, :]
+
     # ------------------------------------------------------------------
     # Forward
     # ------------------------------------------------------------------
@@ -481,7 +585,19 @@ class VariogramScore(BaseLoss):
             idx_a, idx_b = self._get_pairs(n_grid, pred.device, grid_shape)
 
             # Compute VS over spatial pairs → shape (bs, t, v)
-            vs = self._variogram_score_deterministic(pred, target, idx_a, idx_b)
+            spatial_vs = self._variogram_score_deterministic(pred, target, idx_a, idx_b)
+
+            vs = spatial_vs
+            if self.deterministic_include_cross_variable and pred.shape[-1] > 1:
+                var_idx_a, var_idx_b = self._generate_all_pairs(pred.shape[-1], pred.device)
+                cross_var_vs = self._variogram_score_deterministic_cross_variable(
+                    pred,
+                    target,
+                    var_idx_a,
+                    var_idx_b,
+                )
+                weight = self.deterministic_cross_variable_weight
+                vs = (spatial_vs + weight * cross_var_vs) / (1.0 + weight)
 
             # Reshape to (bs, t, 1, 1, v) for scale/reduce compatibility
             vs = vs[:, :, None, None, :]
