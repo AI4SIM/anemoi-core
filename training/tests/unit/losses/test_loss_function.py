@@ -73,7 +73,7 @@ def test_weighted_charbonnier_matches_formula_with_and_without_weights() -> None
     out_with_weights = loss(pred, target, weights=weights, squash=False)
     torch.testing.assert_close(out_with_weights, expected_with_weights)
 
-    expected_scalar = expected_with_weights.mean().unsqueeze(0)
+    expected_scalar = expected_with_weights.mean()
     out_scalar = loss(pred, target, weights=weights, squash=True)
     torch.testing.assert_close(out_scalar, expected_scalar)
 
