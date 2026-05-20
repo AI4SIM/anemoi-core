@@ -22,15 +22,132 @@ from anemoi.training.losses import MSELoss
 from anemoi.training.losses import RMSELoss
 from anemoi.training.losses import SpectralCRPSLoss
 from anemoi.training.losses import SpectralL2Loss
+from anemoi.training.losses import WeightedCharbonnierLoss
 from anemoi.training.losses import WeightedMSELoss
 from anemoi.training.losses import get_loss_function
 from anemoi.training.losses.base import BaseLoss
 from anemoi.training.losses.base import FunctionalLoss
+from anemoi.training.losses.variogram_score import VariogramScore
 from anemoi.training.utils.enums import TensorDim
 
 losses = [MSELoss, HuberLoss, MAELoss, RMSELoss, LogCoshLoss, CRPS, WeightedMSELoss]
 spectral_losses = [SpectralL2Loss, SpectralCRPSLoss, FourierCorrelationLoss, LogSpectralDistance]
 losses += spectral_losses
+
+
+def test_weighted_charbonnier_manual_init() -> None:
+    loss = WeightedCharbonnierLoss(epsilon=1e-2)
+    assert isinstance(loss, BaseLoss)
+    assert loss.epsilon == 1e-2
+
+
+def test_weighted_charbonnier_dynamic_init() -> None:
+    loss = get_loss_function(
+        DictConfig(
+            {
+                "_target_": "anemoi.training.losses.WeightedCharbonnierLoss",
+                "epsilon": 1e-2,
+            },
+        ),
+    )
+    assert isinstance(loss, WeightedCharbonnierLoss)
+    assert loss.epsilon == 1e-2
+
+
+def test_weighted_charbonnier_matches_formula_with_and_without_weights() -> None:
+    epsilon = 1e-3
+    loss = WeightedCharbonnierLoss(epsilon=epsilon)
+
+    pred = torch.tensor([[[[[1.0, 2.0], [3.0, 4.0]]]]])
+    target = torch.tensor([[[[[0.0, 1.0], [1.0, 1.0]]]]])
+
+    diff_sq = torch.square(pred - target)
+    per_point = torch.sqrt(diff_sq + epsilon**2)
+
+    expected_no_weights = per_point.sum(dim=3).mean(dim=(0, 1, 2)).squeeze()
+    out_no_weights = loss(pred, target, squash=False)
+    torch.testing.assert_close(out_no_weights, expected_no_weights)
+
+    weights = torch.tensor([[[[[1.0, 0.5], [2.0, 3.0]]]]])
+    expected_with_weights = (per_point * weights).sum(dim=3).mean(dim=(0, 1, 2)).squeeze()
+    out_with_weights = loss(pred, target, weights=weights, squash=False)
+    torch.testing.assert_close(out_with_weights, expected_with_weights)
+
+    expected_scalar = expected_with_weights.mean().unsqueeze(0)
+    out_scalar = loss(pred, target, weights=weights, squash=True)
+    torch.testing.assert_close(out_scalar, expected_scalar)
+
+
+def test_variogram_score_manual_and_dynamic_init() -> None:
+    manual = VariogramScore(mode="ensemble", p=1.0)
+    assert isinstance(manual, BaseLoss)
+    assert manual.name == "variogram_score_ensemble_p1.0"
+
+    dynamic = get_loss_function(
+        DictConfig(
+            {
+                "_target_": "anemoi.training.losses.variogram_score.VariogramScore",
+                "mode": "deterministic",
+                "p": 0.5,
+                "n_pairs": 0.2,
+                "scalers": [],
+            },
+        ),
+    )
+    assert isinstance(dynamic, VariogramScore)
+
+
+def test_variogram_score_ensemble_zero_when_pred_matches_target() -> None:
+    loss = VariogramScore(mode="ensemble", p=1.0)
+
+    bs, time, ens, grid, nvars = 2, 1, 4, 5, 3
+    target = torch.randn(bs, time, grid, nvars)
+    pred = target.unsqueeze(2).expand(bs, time, ens, grid, nvars).clone()
+
+    out = loss(pred, target, squash=True)
+    assert out.numel() == 1
+    torch.testing.assert_close(out, torch.zeros_like(out))
+
+
+def test_variogram_score_deterministic_shapes_and_finite_with_ignore_nans() -> None:
+    loss = VariogramScore(
+        mode="deterministic",
+        p=0.5,
+        n_pairs=0.5,
+        deterministic_include_cross_variable=True,
+        ignore_nans=True,
+    )
+
+    bs, time, grid, nvars = 2, 1, 8, 3
+    pred = torch.randn(bs, time, grid, nvars)
+    target = torch.randn(bs, time, grid, nvars)
+    target[..., 0, 0] = torch.nan
+
+    out = loss(pred, target, squash=False)
+    assert out.shape == (nvars,)
+    assert torch.isfinite(out).all()
+
+    out_total = loss(pred, target, squash=True)
+    assert out_total.numel() == 1
+    assert torch.isfinite(out_total).all()
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "error_type", "error_match"),
+    [
+        ({"n_pairs": True}, TypeError, "not bool"),
+        ({"n_pairs": 0}, ValueError, "must be > 0"),
+        ({"n_pairs": 1.5}, ValueError, r"must be in \(0, 1\]"),
+        ({"deterministic_cross_variable_weight": -0.1}, ValueError, ">= 0"),
+    ],
+)
+def test_variogram_score_rejects_invalid_arguments(
+    kwargs: dict[str, float | bool],
+    error_type: type[Exception],
+    error_match: str,
+) -> None:
+    with pytest.raises(error_type, match=error_match):
+        VariogramScore(**kwargs)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(
