@@ -450,17 +450,20 @@ def _compute_spectra_dct(field: np.ndarray) -> np.ndarray:
 
     ni, nj = field.shape
     ki, kj = np.meshgrid(np.arange(ni), np.arange(nj), indexing="ij")
+
+    # Denis et al. (2002) retain only coefficients with 0 < alpha < 1.
     alpha = np.sqrt((ki / ni) ** 2 + (kj / nj) ** 2)
+    valid = (alpha > 0.0) & (alpha < 1.0)
 
     n_min = min(ni, nj)
     k_max = n_min - 1
     bins = np.arange(1, k_max + 2) / n_min
-    band_idx = np.digitize(alpha, bins).astype(int)
+    band_idx = np.digitize(alpha[valid], bins).astype(int)
 
-    raw_var_full = np.bincount(band_idx.ravel(), weights=variance.ravel(), minlength=k_max + 2)
+    raw_var_full = np.bincount(band_idx, weights=variance[valid], minlength=k_max + 2)
     raw_var = raw_var_full[1 : k_max + 1].copy()
 
-    mode_count_full = np.bincount(band_idx.ravel(), minlength=k_max + 2)
+    mode_count_full = np.bincount(band_idx, minlength=k_max + 2)
     mode_count = mode_count_full[1 : k_max + 1].copy()
 
     k_g = k_max // 2
