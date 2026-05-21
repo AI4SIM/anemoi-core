@@ -315,7 +315,13 @@ def plot_power_spectrum(
 
     # Define a regular grid for interpolation
     n_pix_lat = int(np.floor(abs(pc_lat.max() - pc_lat.min()) / min_delta_lat))
-    n_pix_lon = (n_pix_lat - 1) * 2 + 1  # 2*lmax + 1
+    if resolved_spectrum_method == "sht":
+        n_pix_lon = 2 * n_pix_lat - 1  # for SHT, need 2*lmax+1 points in longitude
+    else:
+        n_pix_lon = int(
+            np.floor(abs(pc_lon.max() - pc_lon.min()) / min_delta_lat),
+        )  # for DCT, use same resolution in lon and lat
+
     regular_pc_lon = np.linspace(pc_lon.min(), pc_lon.max(), n_pix_lon)
     regular_pc_lat = np.linspace(pc_lat.min(), pc_lat.max(), n_pix_lat)
     grid_pc_lon, grid_pc_lat = np.meshgrid(regular_pc_lon, regular_pc_lat)
