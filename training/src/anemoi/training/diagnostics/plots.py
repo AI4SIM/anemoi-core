@@ -249,7 +249,7 @@ def _is_global_coverage(pc_lon: np.ndarray, pc_lat: np.ndarray) -> bool:
 
 
 def plot_power_spectrum(
-    parameters: dict[str, int],
+    parameters: dict[int, tuple[str, bool]],
     latlons: np.ndarray,
     x: np.ndarray,
     y_true: np.ndarray | None,
@@ -320,7 +320,7 @@ def plot_power_spectrum(
     regular_pc_lat = np.linspace(pc_lat.min(), pc_lat.max(), n_pix_lat)
     grid_pc_lon, grid_pc_lat = np.meshgrid(regular_pc_lon, regular_pc_lat)
 
-    for plot_idx, (variable_idx, (variable_name, diagnostic_only)) in enumerate[tuple[str, int]](parameters.items()):
+    for plot_idx, (variable_idx, (variable_name, diagnostic_only)) in enumerate(parameters.items()):
         xt = (x if x.ndim == 1 else x[..., variable_idx]).reshape(-1)
         yt = (
             (y_true.reshape(-1) if y_true.ndim == 1 else y_true[..., variable_idx].reshape(-1))
