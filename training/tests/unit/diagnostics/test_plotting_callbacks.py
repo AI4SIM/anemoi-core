@@ -965,6 +965,27 @@ def test_plots_plot_power_spectrum_auto_selects_dct_for_regional_domain():
     plt.close(fig)
 
 
+def test_compute_spectra_dct_single_mode_has_peaked_spectrum():
+    """compute_spectra(..., method='dct') concentrates energy in the expected radial bin."""
+    from anemoi.training.diagnostics.plots import compute_spectra
+
+    ni = nj = 32
+    mode = 4
+    i = np.arange(ni)
+    # Single DCT mode in the meridional direction, constant in zonal direction.
+    field = np.cos(np.pi * (i + 0.5) * mode / ni)[:, None] * np.ones((1, nj))
+
+    spectrum = compute_spectra(field, method="dct")
+
+    assert spectrum.shape == (15,)
+    assert int(np.argmax(spectrum)) == 1
+    dominant = float(np.max(spectrum))
+    residual = float(np.sum(spectrum) - dominant)
+    # Keep tolerance loose while still ensuring strong concentration in one band.
+    assert dominant > 1.0
+    assert residual < dominant * 1e-6
+
+
 def test_plots_plot_predicted_multilevel_flat_sample_returns_figure():
     """plot_predicted_multilevel_flat_sample returns a Figure and runs without error."""
     import matplotlib.pyplot as plt
