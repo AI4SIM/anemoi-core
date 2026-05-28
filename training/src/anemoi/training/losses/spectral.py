@@ -45,7 +45,9 @@ if TYPE_CHECKING:
 LOGGER = logging.getLogger(__name__)
 
 
-def _ensure_without_scalers_has_grid_dimension(without_scalers: list[str] | list[int] | None) -> list[str] | list[int]:
+def _ensure_without_scalers_has_grid_dimension(
+    without_scalers: list[str] | list[int] | None,
+) -> list[str] | list[int]:
     """Temporary fix for https://github.com/ecmwf/anemoi-core/issues/725.
 
     Some pipelines pass numeric scaler indices and rely on excluding scalers over grid dimension
@@ -148,6 +150,8 @@ class SpectralL2Loss(SpectralLoss):
         grid_shard_slice: slice | None = None,
         group: ProcessGroup | None = None,
         squash_mode: str = "avg",
+        use_charbonnier: bool = False,
+        epsilon: float | None = 1e-3,
         **kwargs,
     ) -> torch.Tensor:
         del kwargs  # unused
@@ -158,6 +162,8 @@ class SpectralL2Loss(SpectralLoss):
         target_spectral = self._to_spectral_flat(target)
 
         diff = torch.abs(pred_spectral - target_spectral) ** 2
+        if use_charbonnier:
+            diff = torch.sqrt(diff + epsilon**2)
 
         result = self.scale(
             diff,

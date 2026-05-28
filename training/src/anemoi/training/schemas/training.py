@@ -249,7 +249,6 @@ class ImplementedLossesUsingBaseLossSchema(StrEnum):
     rmse = "anemoi.training.losses.RMSELoss"
     mse = "anemoi.training.losses.MSELoss"
     weighted_mse = "anemoi.training.losses.WeightedMSELoss"
-    weighted_charbonnier = "anemoi.training.losses.WeightedCharbonnierLoss"
     mae = "anemoi.training.losses.MAELoss"
     logcosh = "anemoi.training.losses.LogCoshLoss"
     huber = "anemoi.training.losses.HuberLoss"
@@ -269,6 +268,14 @@ class BaseLossSchema(BaseModel):
     "Allow nans in the loss and apply methods ignoring nans for measuring the loss."
     predicted_variables: list[str] | None = None
     target_variables: list[str] | None = None
+
+
+class WeightedMSELossSchema(BaseLossSchema):
+    target_: Literal["anemoi.training.losses.WeightedMSELoss"] = Field(..., alias="_target_")
+    use_charbonnier: bool = False
+    "Whether to apply the Charbonnier loss formulation (sqrt of MSE with epsilon) instead of standard MSE."
+    epsilon: float = Field(default=1e-3, example=1e-3)
+    "Small smooth/stabilisation constant for the Charbonnier loss."
 
 
 class CRPSSchema(BaseLossSchema):
@@ -407,11 +414,6 @@ class HuberLossSchema(BaseLossSchema):
     "Threshold for Huber loss."
 
 
-class WeightedCharbonnierLossSchema(BaseLossSchema):
-    epsilon: float = 1e-3
-    "Small constant to avoid division by zero in Charbonnier loss."
-
-
 class SpectralLossSchema(BaseLossSchema):
     """Spectral loss class."""
 
@@ -422,6 +424,17 @@ class SpectralLossSchema(BaseLossSchema):
         """Override to allow extra parameters for spectral transforms."""
 
         extra = "allow"
+
+
+class SpectralL2LossSchema(SpectralLossSchema):
+    """Schema for SpectralL2Loss with Charbonnier variant support."""
+
+    target_: Literal["anemoi.training.losses.spectral.SpectralL2Loss"] = Field(..., alias="_target_")
+    "SpectralL2Loss target."
+    use_charbonnier: bool = False
+    "Whether to use Charbonnier variant (L2 + epsilon^2)."
+    epsilon: float = 1e-3
+    "Epsilon value for Charbonnier loss variant."
 
 
 def _loss_discriminator(v: Any) -> str:
@@ -442,8 +455,6 @@ def _loss_discriminator(v: Any) -> str:
         return "spectral"
     if target == "anemoi.training.losses.HuberLoss":
         return "huber"
-    if target == "anemoi.training.losses.WeightedCharbonnierLoss":
-        return "weighted_charbonnier"
     if target == "anemoi.training.losses.aggregate.TimeAggregateLossWrapper":
         return "time_aggregate"
     return "base"
@@ -520,7 +531,6 @@ class CombinedLossSchema(BaseLossSchema):
 LossSchemas = Annotated[
     Annotated[BaseLossSchema, Tag("base")]
     | Annotated[HuberLossSchema, Tag("huber")]
-    | Annotated[WeightedCharbonnierLossSchema, Tag("weighted_charbonnier")]
     | Annotated[CombinedLossSchema, Tag("combined")]
     | Annotated[CRPSSchema, Tag("crps")]
     | Annotated[SpectralLossSchema, Tag("spectral")]
