@@ -426,17 +426,6 @@ class SpectralLossSchema(BaseLossSchema):
         extra = "allow"
 
 
-class SpectralL2LossSchema(SpectralLossSchema):
-    """Schema for SpectralL2Loss with Charbonnier variant support."""
-
-    target_: Literal["anemoi.training.losses.spectral.SpectralL2Loss"] = Field(..., alias="_target_")
-    "SpectralL2Loss target."
-    use_charbonnier: bool = False
-    "Whether to use Charbonnier variant (L2 + epsilon^2)."
-    epsilon: float = 1e-3
-    "Epsilon value for Charbonnier loss variant."
-
-
 def _loss_discriminator(v: Any) -> str:
     target = v.get("_target_", "") if hasattr(v, "get") else getattr(v, "target_", "")
     if target == "anemoi.training.losses.combined.CombinedLoss":
@@ -445,6 +434,8 @@ def _loss_discriminator(v: Any) -> str:
         return "multiscale"
     if target == "anemoi.training.losses.CRPS":
         return "crps"
+    if target == "anemoi.training.losses.WeightedMSELoss":
+        return "weighted_mse"
     if target in {
         "anemoi.training.losses.spectral.FourierCorrelationLoss",
         "anemoi.training.losses.spectral.LogSpectralDistance",
@@ -475,7 +466,8 @@ class CombinedLossSchema(BaseLossSchema):
     "Optional top-level scalers propagated to sub-losses that don't define their own."
     losses: list[
         Annotated[
-            Annotated[BaseLossSchema, Tag("base")]
+            Annotated[WeightedMSELossSchema, Tag("weighted_mse")]
+            | Annotated[BaseLossSchema, Tag("base")]
             | Annotated[HuberLossSchema, Tag("huber")]
             | Annotated[CRPSSchema, Tag("crps")]
             | Annotated[SpectralLossSchema, Tag("spectral")]
@@ -529,7 +521,8 @@ class CombinedLossSchema(BaseLossSchema):
 
 
 LossSchemas = Annotated[
-    Annotated[BaseLossSchema, Tag("base")]
+    Annotated[WeightedMSELossSchema, Tag("weighted_mse")]
+    | Annotated[BaseLossSchema, Tag("base")]
     | Annotated[HuberLossSchema, Tag("huber")]
     | Annotated[CombinedLossSchema, Tag("combined")]
     | Annotated[CRPSSchema, Tag("crps")]
