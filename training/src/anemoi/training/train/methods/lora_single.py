@@ -31,7 +31,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 class LoRASingleTraining(SingleTraining):
-    """Graph neural network forecaster for PyTorch Lightning."""
+    """LoRA training method."""
 
     def __init__(
         self,
