@@ -5,6 +5,9 @@ system:
 
 training:
   fork_run_id: "dummy_id"
+  lora_config:
+    use_dora: True
+    use_rslora: True
 
 dataloader:
   training:

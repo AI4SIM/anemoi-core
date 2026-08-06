@@ -129,6 +129,10 @@ class LoRAConfig(BaseModel):
     "The names of the modules to apply the adapter to."
     modules_to_save: list[str] = Field(examples=["node_data_extractor.1"])
     "List of modules apart from adapter layers to be set as trainable."
+    use_dora: bool = False
+    "Enable Weight-Decomposed Low-Rank Adaptation (DoRA)."
+    use_rslora: bool = False
+    "Rank-Stabilized LoRA."
 
 
 class LossScalingSchema(BaseModel):
