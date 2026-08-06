@@ -329,6 +329,8 @@ class AnemoiTrainer(ABC):
             if self.config.training.transfer_learning:
                 LOGGER.info("Loading weights with Transfer Learning from %s", self.last_checkpoint)
                 model = transfer_learning_loading(model, self.last_checkpoint)
+                # Added for LoRA
+                model.on_checkpoint_loaded()
             else:
                 LOGGER.info("Restoring only model weights from %s", self.last_checkpoint)
                 # pop data_indices so that the data indices on the checkpoint do not get overwritten
@@ -340,6 +342,8 @@ class AnemoiTrainer(ABC):
                     strict=False,
                     weights_only=False,  # required for Pytorch Lightning 2.6
                 )
+                # Added for LoRA
+                model.on_checkpoint_loaded()
 
             model.data_indices = self.data_indices
             # Validate data indices between checkpoint and current config

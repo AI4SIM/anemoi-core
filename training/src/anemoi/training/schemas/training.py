@@ -115,6 +115,27 @@ class TargetForcing(BaseModel):
     "Use target time as a fraction between input boundary times as input."
 
 
+class LoRAConfig(BaseModel):
+    """LoRA parameters.
+
+    See https://huggingface.co/docs/peft/package_reference/lora#peft.LoraConfig
+    for more information.
+    """
+
+    r: int = 8
+    "Lora attention dimension (the “rank”)."
+    lora_alpha: int = 32
+    "The alpha parameter for Lora scaling."
+    target_modules: list[str] = Field(examples=["mlp.0", "mlp.2"])
+    "The names of the modules to apply the adapter to."
+    modules_to_save: list[str] = Field(examples=["node_data_extractor.1"])
+    "List of modules apart from adapter layers to be set as trainable."
+    use_dora: bool = False
+    "Enable Weight-Decomposed Low-Rank Adaptation (DoRA)."
+    use_rslora: bool = False
+    "Rank-Stabilized LoRA."
+
+
 class LossScalingSchema(BaseModel):
     default: int = 1
     "Default scaling value applied to the variables loss. Default to 1."
@@ -638,7 +659,18 @@ class DiffusionTendencyTrainingSchema(BaseTrainingSchema):
     "Training objective."
 
 
+class LoRASingleTrainingSchema(BaseTrainingSchema):
+    training_method: Literal["anemoi.training.train.methods.LoRASingleTraining"] = Field(..., alias="training_method")
+    "Training objective."
+    lora_config: LoRAConfig
+    "Configuration for the LoRA adapter."
+
+
 TrainingSchema = Annotated[
-    SingleTrainingSchema | EnsembleTrainingSchema | DiffusionTrainingSchema | DiffusionTendencyTrainingSchema,
+    SingleTrainingSchema
+    | EnsembleTrainingSchema
+    | DiffusionTrainingSchema
+    | DiffusionTendencyTrainingSchema
+    | LoRASingleTrainingSchema,
     Discriminator("training_method"),
 ]

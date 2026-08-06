@@ -460,6 +460,13 @@ class BaseTrainingModule(pl.LightningModule, ABC):
             for dataset_name, data_indices in checkpoint["hyper_parameters"]["data_indices"].items()
         }
 
+    def on_checkpoint_loaded(self) -> None:
+        """Called once a model has been loaded from a checkpoint.
+
+        Override to perform actions on the model. This applies to both transfer
+        learning and weights-only settings.
+        """
+
     def _update_scaler_for_dataset(
         self,
         name: str,
