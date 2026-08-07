@@ -207,4 +207,5 @@ lint.ignore = [
   "UP007",
 ]
 lint.flake8-import-conventions.extend-aliases.pytorch_lightning = "pl"
+lint.pep8-naming.ignore-names = [ "num_B", "stride_A" ]  # peft Lily parameters
 lint.pydocstyle.convention = "numpy"

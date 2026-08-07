@@ -13,6 +13,7 @@ from typing import Annotated
 from typing import Any
 from typing import Literal
 from typing import Self
+from typing import Union
 
 from pydantic import AfterValidator
 from pydantic import ConfigDict
@@ -21,6 +22,8 @@ from pydantic import Field
 from pydantic import NonNegativeFloat
 from pydantic import NonNegativeInt
 from pydantic import PositiveInt
+from pydantic import TypeAdapter
+from pydantic import ValidationError
 from pydantic import field_validator
 from pydantic import model_validator
 
@@ -114,7 +117,7 @@ class TargetForcing(BaseModel):
     "Use target time as a fraction between input boundary times as input."
 
 
-class LoRAConfig(BaseModel):
+class LoRASchema(BaseModel):
     """LoRA parameters.
 
     See https://huggingface.co/docs/peft/package_reference/lora#peft.LoraConfig
@@ -129,10 +132,116 @@ class LoRAConfig(BaseModel):
     "The names of the modules to apply the adapter to."
     modules_to_save: list[str] = Field(examples=["node_data_extractor.1"])
     "List of modules apart from adapter layers to be set as trainable."
+    lora_dropout: float = 0.0
+    "The dropout probability for Lora layers."
     use_dora: bool = False
     "Enable Weight-Decomposed Low-Rank Adaptation (DoRA)."
     use_rslora: bool = False
     "Rank-Stabilized LoRA."
+
+
+class LilySchema(BaseModel):
+    """Lily parameters.
+
+    See https://huggingface.co/docs/peft/v0.20.0/en/package_reference/lily
+    for more information.
+    """
+
+    r: int = 32
+    "Lily's rank. Typically 2x, 3x, or 4x the LoRA rank you would normally use."
+    stride_A: int = 2
+    "Stride for the A matrix. if stride_A=4, every 4 adjacent layers share the same A adapter."
+    num_B: int = 4
+    " The number of shared B adapters."
+    target_modules: list[str] = Field(examples=["mlp.0", "mlp.2"])
+    "The names of the modules to apply the adapter to."
+    modules_to_save: list[str] = Field(examples=["node_data_extractor.1"])
+    "List of modules apart from adapter layers to be set as trainable."
+    scaling: float = 1.0
+    "A scalar multiplier applied to the combined adapter output (scaling * A @ combined_B)."
+
+
+class MissSchema(BaseModel):
+    """Miss parameters.
+
+    See https://huggingface.co/docs/peft/v0.20.0/en/package_reference/miss
+    for more information.
+    """
+
+    r: int = 32
+    " The rank of MiSS across different layers. It is best to set r to an even number."
+    mini_r: int = 1
+    "The rank of MiSS corresponds to a low-rank decomposition along the out_features dimension."
+    init_weights: bool | Literal["bat", "mini"] = True
+    "Different initializations correspond to different MiSS variants."
+    target_modules: list[str] = Field(examples=["mlp.0", "mlp.2"])
+    "The names of the modules to apply the adapter to."
+    modules_to_save: list[str] = Field(examples=["node_data_extractor.1"])
+    "List of modules apart from adapter layers to be set as trainable."
+    miss_dropout: float = 0.0
+    "The dropout probability for Miss layers."
+    bias: Literal["none", "all", "MiSS_only"] = "none"
+    "Bias type for MiSS. Can be 'none', 'all' or 'MiSS_only'."
+
+
+class OFTSchema(BaseModel):
+    """OFT parameters.
+
+    See https://huggingface.co/docs/peft/v0.20.0/en/package_reference/oft
+    for more information.
+    """
+
+    r: int = 0
+    "The number of OFT blocks per injected layer."
+    oft_block_size: int = 32
+    "OFT block size across different layers."
+    target_modules: list[str] = Field(examples=["mlp.0", "mlp.2"])
+    "The names of the modules to apply the adapter to."
+    modules_to_save: list[str] = Field(examples=["node_data_extractor.1"])
+    "List of modules apart from adapter layers to be set as trainable."
+    module_dropout: float = 0.0
+    "The multiplicative dropout probability, by setting OFT blocks to identity during training."
+    use_cayley_neumann: bool = False
+    """Use the Cayley-Neumann parameterization (efficient but approximate) or the vanilla Cayley
+    parameterization (exact but computationally expensive because of matrix inverse)."""
+    bias: Literal["none", "all", "oft_only"] = "none"
+    "Bias type for OFT. Can be 'none', 'all' or 'oft_only'."
+
+
+class PeftTarget(StrEnum):
+    lora = "peft.LoraConfig"
+    lily = "peft.LilyConfig"
+    miss = "peft.MissConfig"
+    oft = "peft.OFTConfig"
+
+
+target_to_schema = {
+    PeftTarget.lora: LoRASchema,
+    PeftTarget.lily: LilySchema,
+    PeftTarget.miss: MissSchema,
+    PeftTarget.oft: OFTSchema,
+}
+
+
+class PeftSchema(BaseModel, validate_assignment=False):
+    target_: PeftTarget = Field(..., alias="_target_")
+    "Peft configuration target."
+    config: Union[dict, LoRASchema, LilySchema, MissSchema, OFTSchema]
+    "Target schema containing peft configuration."
+
+    @model_validator(mode="after")
+    def schema_consistent_with_target(self) -> type["PeftSchema"]:
+        schema_cls = target_to_schema.get(self.target_)
+        if schema_cls is None:
+            error_msg = f"Unknown target: {self.target_}"
+            raise ValidationError(error_msg)
+
+        validated = TypeAdapter(schema_cls).validate_python(self.config)
+        # If it's a RootModel (like ConstantImputerSchema), extract the root dict
+        if hasattr(validated, "root"):
+            self.config = validated.root
+
+        return self
 
 
 class LossScalingSchema(BaseModel):
@@ -494,11 +603,11 @@ class DiffusionTendencyTrainingSchema(BaseTrainingSchema):
     "Training objective."
 
 
-class LoRASingleTrainingSchema(BaseTrainingSchema):
-    training_method: Literal["anemoi.training.train.methods.LoRASingleTraining"] = Field(..., alias="training_method")
+class PeftSingleTrainingSchema(BaseTrainingSchema):
+    training_method: Literal["anemoi.training.train.methods.PeftSingleTraining"] = Field(..., alias="training_method")
     "Training objective."
-    lora_config: LoRAConfig
-    "Configuration for the LoRA adapter."
+    peft_config: PeftSchema
+    "Configuration for the Peft adapter."
 
 
 TrainingSchema = Annotated[
@@ -506,6 +615,6 @@ TrainingSchema = Annotated[
     | EnsembleTrainingSchema
     | DiffusionTrainingSchema
     | DiffusionTendencyTrainingSchema
-    | LoRASingleTrainingSchema,
+    | PeftSingleTrainingSchema,
     Discriminator("training_method"),
 ]

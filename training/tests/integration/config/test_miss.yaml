@@ -6,14 +6,15 @@ system:
 training:
   fork_run_id: "dummy_id"
   peft_config:
-    _target_: peft.LoraConfig
+    _target_: peft.MissConfig
     config:
-      r: 8
-      lora_alpha: 32
+      r: 32
+      mini_r: 1
+      init_weights: bat
+      miss_dropout: 0.1
+      bias: MiSS_only
       target_modules: ['mlp.0', 'mlp.2', 'dummy_layer']
       modules_to_save: ['node_data_extractor.1']
-      use_dora: True
-      use_rslora: True
 
 dataloader:
   training:

@@ -31,15 +31,11 @@ gradient_clip:
   algorithm: value
 
 # select model
-training_method: anemoi.training.train.methods.LoRASingleTraining
+training_method: anemoi.training.train.methods.PeftSingleTraining
 
-lora_config:
-  r: 8
-  lora_alpha: 32
-  target_modules: ['mlp.0', 'mlp.2', 'dummy_layer']
-  modules_to_save: ['node_data_extractor.1']
-  use_dora: False
-  use_rslora: False
+peft_config:
+  _target_: ???
+  config: ???
 
 # select strategy
 strategy:

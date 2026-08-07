@@ -6,14 +6,15 @@ system:
 training:
   fork_run_id: "dummy_id"
   peft_config:
-    _target_: peft.LoraConfig
+    _target_: peft.OFTConfig
     config:
-      r: 8
-      lora_alpha: 32
+      r: 0
+      oft_block_size: 32
+      module_dropout: 0.1
+      use_cayley_neumann: True
+      bias: oft_only
       target_modules: ['mlp.0', 'mlp.2', 'dummy_layer']
       modules_to_save: ['node_data_extractor.1']
-      use_dora: True
-      use_rslora: True
 
 dataloader:
   training:

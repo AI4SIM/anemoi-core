@@ -557,9 +557,105 @@ def lora_config(
     migrator: Migrator,
 ) -> tuple[DictConfig, str]:
     with initialize(version_base=None, config_path="../../src/anemoi/training/config", job_name="test_lora"):
-        template = compose(config_name="lora")
+        template = compose(config_name="peft")
 
     use_case_modifications = OmegaConf.load(Path.cwd() / "training/tests/integration/config/test_lora.yaml")
+    tmp_dir_dataset, url_dataset = get_tmp_path(use_case_modifications.system.input.dataset)
+    use_case_modifications.system.input.dataset = str(tmp_dir_dataset)
+
+    cfg = OmegaConf.merge(template, testing_modifications_with_temp_dir, use_case_modifications)
+    OmegaConf.resolve(cfg)
+
+    existing_ckpt = get_test_data(
+        "anemoi-integration-tests/training/checkpoints/testing-checkpoint-gnn-global-2026-03-06.ckpt",
+    )
+    _, new_ckpt, _ = migrator.sync(existing_ckpt)
+
+    checkpoint_dir = Path(cfg.system.output.root + "/" + cfg.system.output.checkpoints.root + "/dummy_id")
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    torch.save(new_ckpt, checkpoint_dir / "last.ckpt")
+
+    cfg.diagnostics.plot.callbacks = []  # remove plotting callbacks as they are tested in global training cycle test
+    cfg.diagnostics.callbacks = []  # remove RolloutEval callback as it is tested in global training cycle test
+
+    return cfg, url_dataset
+
+
+@pytest.fixture
+def lily_config(
+    testing_modifications_with_temp_dir: DictConfig,
+    get_tmp_path: GetTmpPath,
+    get_test_data: GetTestData,
+    migrator: Migrator,
+) -> tuple[DictConfig, str]:
+    with initialize(version_base=None, config_path="../../src/anemoi/training/config", job_name="test_lily"):
+        template = compose(config_name="peft")
+
+    use_case_modifications = OmegaConf.load(Path.cwd() / "training/tests/integration/config/test_lily.yaml")
+    tmp_dir_dataset, url_dataset = get_tmp_path(use_case_modifications.system.input.dataset)
+    use_case_modifications.system.input.dataset = str(tmp_dir_dataset)
+
+    cfg = OmegaConf.merge(template, testing_modifications_with_temp_dir, use_case_modifications)
+    OmegaConf.resolve(cfg)
+
+    existing_ckpt = get_test_data(
+        "anemoi-integration-tests/training/checkpoints/testing-checkpoint-gnn-global-2026-03-06.ckpt",
+    )
+    _, new_ckpt, _ = migrator.sync(existing_ckpt)
+
+    checkpoint_dir = Path(cfg.system.output.root + "/" + cfg.system.output.checkpoints.root + "/dummy_id")
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    torch.save(new_ckpt, checkpoint_dir / "last.ckpt")
+
+    cfg.diagnostics.plot.callbacks = []  # remove plotting callbacks as they are tested in global training cycle test
+    cfg.diagnostics.callbacks = []  # remove RolloutEval callback as it is tested in global training cycle test
+
+    return cfg, url_dataset
+
+
+@pytest.fixture
+def miss_config(
+    testing_modifications_with_temp_dir: DictConfig,
+    get_tmp_path: GetTmpPath,
+    get_test_data: GetTestData,
+    migrator: Migrator,
+) -> tuple[DictConfig, str]:
+    with initialize(version_base=None, config_path="../../src/anemoi/training/config", job_name="test_miss"):
+        template = compose(config_name="peft")
+
+    use_case_modifications = OmegaConf.load(Path.cwd() / "training/tests/integration/config/test_miss.yaml")
+    tmp_dir_dataset, url_dataset = get_tmp_path(use_case_modifications.system.input.dataset)
+    use_case_modifications.system.input.dataset = str(tmp_dir_dataset)
+
+    cfg = OmegaConf.merge(template, testing_modifications_with_temp_dir, use_case_modifications)
+    OmegaConf.resolve(cfg)
+
+    existing_ckpt = get_test_data(
+        "anemoi-integration-tests/training/checkpoints/testing-checkpoint-gnn-global-2026-03-06.ckpt",
+    )
+    _, new_ckpt, _ = migrator.sync(existing_ckpt)
+
+    checkpoint_dir = Path(cfg.system.output.root + "/" + cfg.system.output.checkpoints.root + "/dummy_id")
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    torch.save(new_ckpt, checkpoint_dir / "last.ckpt")
+
+    cfg.diagnostics.plot.callbacks = []  # remove plotting callbacks as they are tested in global training cycle test
+    cfg.diagnostics.callbacks = []  # remove RolloutEval callback as it is tested in global training cycle test
+
+    return cfg, url_dataset
+
+
+@pytest.fixture
+def oft_config(
+    testing_modifications_with_temp_dir: DictConfig,
+    get_tmp_path: GetTmpPath,
+    get_test_data: GetTestData,
+    migrator: Migrator,
+) -> tuple[DictConfig, str]:
+    with initialize(version_base=None, config_path="../../src/anemoi/training/config", job_name="test_oft"):
+        template = compose(config_name="peft")
+
+    use_case_modifications = OmegaConf.load(Path.cwd() / "training/tests/integration/config/test_oft.yaml")
     tmp_dir_dataset, url_dataset = get_tmp_path(use_case_modifications.system.input.dataset)
     use_case_modifications.system.input.dataset = str(tmp_dir_dataset)
 

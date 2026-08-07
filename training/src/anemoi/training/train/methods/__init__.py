@@ -10,13 +10,13 @@
 from .diffusion import DiffusionTendencyTraining
 from .diffusion import DiffusionTraining
 from .ensemble import EnsembleTraining
-from .lora_single import LoRASingleTraining
+from .peft_single import PeftSingleTraining
 from .single import SingleTraining
 
 __all__ = [
     "DiffusionTendencyTraining",
     "DiffusionTraining",
     "EnsembleTraining",
-    "LoRASingleTraining",
+    "PeftSingleTraining",
     "SingleTraining",
 ]

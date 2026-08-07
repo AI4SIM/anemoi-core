@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from peft import LoraConfig
+from hydra.utils import get_class
 from peft import PeftModel
 from peft import get_peft_model
 
@@ -30,8 +30,8 @@ if TYPE_CHECKING:
 LOGGER = logging.getLogger(__name__)
 
 
-class LoRASingleTraining(SingleTraining):
-    """LoRA training method."""
+class PeftSingleTraining(SingleTraining):
+    """PEFT training method."""
 
     def __init__(
         self,
@@ -57,7 +57,8 @@ class LoRASingleTraining(SingleTraining):
             supporting_arrays=supporting_arrays,
         )
 
-        self.lora_config = LoraConfig(**config.training.lora_config)
+        peft_config_class = get_class(config.training.peft_config._target_)
+        self.peft_config = peft_config_class(**config.training.peft_config.config)
 
     def on_load_checkpoint(self, checkpoint: torch.nn.Module) -> None:
         self._update_checkpoint_state_dict_for_load(checkpoint)
@@ -66,13 +67,13 @@ class LoRASingleTraining(SingleTraining):
             dataset_name: data_indices.name_to_index
             for dataset_name, data_indices in checkpoint["hyper_parameters"]["data_indices"].items()
         }
-        if "LoRASingleTraining" in checkpoint["hyper_parameters"]["config"].training.training_method:
-            self._inject_lora_adapters()
+        if "PeftSingleTraining" in checkpoint["hyper_parameters"]["config"].training.training_method:
+            self._inject_peft_adapters()
 
     def on_checkpoint_loaded(self) -> None:
         if not isinstance(self.model, PeftModel):
-            self._inject_lora_adapters()
+            self._inject_peft_adapters()
 
-    def _inject_lora_adapters(self) -> None:
-        get_peft_model(self.model, self.lora_config)
-        LOGGER.info("LoRA adapters injected into the model")
+    def _inject_peft_adapters(self) -> None:
+        get_peft_model(self.model, self.peft_config)
+        LOGGER.info("PEFT adapters injected into the model")

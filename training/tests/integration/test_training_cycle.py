@@ -388,6 +388,132 @@ def test_config_validation_lora(lora_config: tuple[DictConfig, str]) -> None:
     BaseSchema(**cfg)
 
 
+@skip_if_offline
+@pytest.mark.slow
+def test_training_cycle_lily(lily_config: tuple[DictConfig, list[str]], get_test_archive: GetTestArchive) -> None:
+    cfg, url = lily_config
+    get_test_archive(url)
+    trainer = AnemoiTrainer(cfg)
+    has_lily = False
+    for name, _param in trainer.model.named_parameters():
+        if "lily_A" in name:
+            has_lily = True
+            break
+    assert has_lily, "Expected model to have Lily embeddings for Lily training"
+    trainer.train()
+
+    output_dir = Path(cfg.system.output.root + "/" + cfg.system.output.checkpoints.root)
+    assert output_dir.exists(), f"Checkpoint directory not found at: {output_dir}"
+
+    run_dirs = [item for item in output_dir.iterdir() if item.is_dir() and item.name != "dummy_id"]
+    assert (
+        len(run_dirs) == 1
+    ), f"Expected exactly one run_id directory, found {len(run_dirs)}: {[d.name for d in run_dirs]}"
+
+    checkpoint_dir = run_dirs[0]
+    assert len(list(checkpoint_dir.glob("anemoi-by_epoch-*.ckpt"))) == 2, "Expected 2 checkpoints after first run"
+
+    cfg.training.run_id = checkpoint_dir.name
+    cfg.training.max_epochs = cfg.training.max_epochs + 3
+    trainer = AnemoiTrainer(cfg)
+    has_lily = False
+    for name, _param in trainer.model.named_parameters():
+        if "lily_A" in name:
+            has_lily = True
+            break
+    assert has_lily, "Expected model to have Lily embeddings for Lily training"
+    trainer.train()
+
+
+def test_config_validation_lily(lily_config: tuple[DictConfig, str]) -> None:
+    cfg, _ = lily_config
+    BaseSchema(**cfg)
+
+
+@skip_if_offline
+@pytest.mark.slow
+def test_training_cycle_miss(miss_config: tuple[DictConfig, list[str]], get_test_archive: GetTestArchive) -> None:
+    cfg, url = miss_config
+    get_test_archive(url)
+    trainer = AnemoiTrainer(cfg)
+    has_miss = False
+    for name, _param in trainer.model.named_modules():
+        if "miss_block" in name:
+            has_miss = True
+            break
+    assert has_miss, "Expected model to have Miss block for Miss training"
+    trainer.train()
+
+    output_dir = Path(cfg.system.output.root + "/" + cfg.system.output.checkpoints.root)
+    assert output_dir.exists(), f"Checkpoint directory not found at: {output_dir}"
+
+    run_dirs = [item for item in output_dir.iterdir() if item.is_dir() and item.name != "dummy_id"]
+    assert (
+        len(run_dirs) == 1
+    ), f"Expected exactly one run_id directory, found {len(run_dirs)}: {[d.name for d in run_dirs]}"
+
+    checkpoint_dir = run_dirs[0]
+    assert len(list(checkpoint_dir.glob("anemoi-by_epoch-*.ckpt"))) == 2, "Expected 2 checkpoints after first run"
+
+    cfg.training.run_id = checkpoint_dir.name
+    cfg.training.max_epochs = cfg.training.max_epochs + 3
+    trainer = AnemoiTrainer(cfg)
+    has_miss = False
+    for name, _param in trainer.model.named_modules():
+        if "miss_block" in name:
+            has_miss = True
+            break
+    assert has_miss, "Expected model to have Miss block for Miss training"
+    trainer.train()
+
+
+def test_config_validation_miss(miss_config: tuple[DictConfig, str]) -> None:
+    cfg, _ = miss_config
+    BaseSchema(**cfg)
+
+
+@skip_if_offline
+@pytest.mark.slow
+def test_training_cycle_oft(oft_config: tuple[DictConfig, list[str]], get_test_archive: GetTestArchive) -> None:
+    cfg, url = oft_config
+    get_test_archive(url)
+    trainer = AnemoiTrainer(cfg)
+    has_oft = False
+    for name, _param in trainer.model.named_modules():
+        if "oft_R" in name:
+            has_oft = True
+            break
+    assert has_oft, "Expected model to have Oft block for Oft training"
+    trainer.train()
+
+    output_dir = Path(cfg.system.output.root + "/" + cfg.system.output.checkpoints.root)
+    assert output_dir.exists(), f"Checkpoint directory not found at: {output_dir}"
+
+    run_dirs = [item for item in output_dir.iterdir() if item.is_dir() and item.name != "dummy_id"]
+    assert (
+        len(run_dirs) == 1
+    ), f"Expected exactly one run_id directory, found {len(run_dirs)}: {[d.name for d in run_dirs]}"
+
+    checkpoint_dir = run_dirs[0]
+    assert len(list(checkpoint_dir.glob("anemoi-by_epoch-*.ckpt"))) == 2, "Expected 2 checkpoints after first run"
+
+    cfg.training.run_id = checkpoint_dir.name
+    cfg.training.max_epochs = cfg.training.max_epochs + 3
+    trainer = AnemoiTrainer(cfg)
+    has_oft = False
+    for name, _param in trainer.model.named_modules():
+        if "oft_R" in name:
+            has_oft = True
+            break
+    assert has_oft, "Expected model to have Oft block for Oft training"
+    trainer.train()
+
+
+def test_config_validation_oft(oft_config: tuple[DictConfig, str]) -> None:
+    cfg, _ = oft_config
+    BaseSchema(**cfg)
+
+
 @pytest.mark.mlflow
 def test_training_cycle_mlflow_dry_run(
     mlflow_dry_run_config: tuple[DictConfig, str],
