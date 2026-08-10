@@ -8,12 +8,12 @@ training:
   peft_config:
     _target_: peft.MissConfig
     config:
-      r: 32
+      r: 4
       mini_r: 1
       init_weights: bat
       miss_dropout: 0.1
       bias: MiSS_only
-      target_modules: ['mlp.0', 'mlp.2', 'dummy_layer']
+      target_modules: ['node_mlp.mlp.0', 'node_mlp.mlp.2']
       modules_to_save: ['node_data_extractor.1']
 
 dataloader:
