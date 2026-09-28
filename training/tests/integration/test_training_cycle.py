@@ -423,12 +423,12 @@ def test_training_cycle_lily(lily_config: tuple[DictConfig, list[str]], get_test
     cfg.training.load_weights_only = False
     trainer = AnemoiTrainer(cfg)
     has_lily = False
+    trainer.train()
     for name, _param in trainer.model.named_parameters():
         if "lily_A" in name:
             has_lily = True
             break
     assert has_lily, "Expected model to have Lily embeddings for Lily training"
-    trainer.train()
 
 
 def test_config_validation_lily(lily_config: tuple[DictConfig, str]) -> None:
