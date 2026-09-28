@@ -371,8 +371,11 @@ def test_training_cycle_lora(lora_config: tuple[DictConfig, list[str]], get_test
     checkpoint_dir = run_dirs[0]
     assert len(list(checkpoint_dir.glob("anemoi-by_epoch-*.ckpt"))) == 2, "Expected 2 checkpoints after first run"
 
+    # Test resume training
     cfg.training.run_id = checkpoint_dir.name
     cfg.training.max_epochs = cfg.training.max_epochs + 3
+    cfg.training.transfer_learning = False
+    cfg.training.load_weights_only = False
     trainer = AnemoiTrainer(cfg)
     has_lora = False
     for name, _param in trainer.model.named_parameters():
@@ -413,8 +416,11 @@ def test_training_cycle_lily(lily_config: tuple[DictConfig, list[str]], get_test
     checkpoint_dir = run_dirs[0]
     assert len(list(checkpoint_dir.glob("anemoi-by_epoch-*.ckpt"))) == 2, "Expected 2 checkpoints after first run"
 
+    # Test resume training
     cfg.training.run_id = checkpoint_dir.name
     cfg.training.max_epochs = cfg.training.max_epochs + 3
+    cfg.training.transfer_learning = False
+    cfg.training.load_weights_only = False
     trainer = AnemoiTrainer(cfg)
     has_lily = False
     for name, _param in trainer.model.named_parameters():
@@ -455,8 +461,11 @@ def test_training_cycle_miss(miss_config: tuple[DictConfig, list[str]], get_test
     checkpoint_dir = run_dirs[0]
     assert len(list(checkpoint_dir.glob("anemoi-by_epoch-*.ckpt"))) == 2, "Expected 2 checkpoints after first run"
 
+    # Test resume training
     cfg.training.run_id = checkpoint_dir.name
     cfg.training.max_epochs = cfg.training.max_epochs + 3
+    cfg.training.transfer_learning = False
+    cfg.training.load_weights_only = False
     trainer = AnemoiTrainer(cfg)
     has_miss = False
     for name, _param in trainer.model.named_modules():
@@ -497,8 +506,11 @@ def test_training_cycle_oft(oft_config: tuple[DictConfig, list[str]], get_test_a
     checkpoint_dir = run_dirs[0]
     assert len(list(checkpoint_dir.glob("anemoi-by_epoch-*.ckpt"))) == 2, "Expected 2 checkpoints after first run"
 
+    # Test resume training
     cfg.training.run_id = checkpoint_dir.name
     cfg.training.max_epochs = cfg.training.max_epochs + 3
+    cfg.training.transfer_learning = False
+    cfg.training.load_weights_only = False
     trainer = AnemoiTrainer(cfg)
     has_oft = False
     for name, _param in trainer.model.named_modules():
