@@ -57,27 +57,22 @@ class PeftSingleTraining(SingleTraining):
             supporting_arrays=supporting_arrays,
         )
 
-        self.hparams["training_method"] = self.__class__.__name__
-
         peft_config_class = get_class(config.training.peft_config._target_)
         self.peft_config = peft_config_class(**config.training.peft_config.config)
 
     def on_load_checkpoint(self, checkpoint: torch.nn.Module) -> None:
-        LOGGER.info("loading checkpoint")
         self._update_checkpoint_state_dict_for_load(checkpoint)
 
         self._ckpt_model_name_to_index = {
             dataset_name: data_indices.name_to_index
             for dataset_name, data_indices in checkpoint["hyper_parameters"]["data_indices"].items()
         }
-        LOGGER.info(checkpoint.keys())
         if "PeftSingleTraining" in checkpoint["hyper_parameters"]["config"].training.training_method:
             self._inject_peft_adapters()
 
     def on_checkpoint_loaded(self) -> None:
         if not isinstance(self.model, PeftModel):
             self._inject_peft_adapters()
-        LOGGER.info("checkpoint loaded")
 
     def _inject_peft_adapters(self) -> None:
         get_peft_model(self.model, self.peft_config)

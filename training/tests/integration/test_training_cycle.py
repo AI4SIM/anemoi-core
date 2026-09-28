@@ -373,17 +373,18 @@ def test_training_cycle_lora(lora_config: tuple[DictConfig, list[str]], get_test
 
     # Test resume training
     cfg.training.run_id = checkpoint_dir.name
+    cfg.training.fork_run_id = None
     cfg.training.max_epochs = cfg.training.max_epochs + 3
     cfg.training.transfer_learning = False
     cfg.training.load_weights_only = False
     trainer = AnemoiTrainer(cfg)
     has_lora = False
+    trainer.train()
     for name, _param in trainer.model.named_parameters():
         if "lora_A" in name:
             has_lora = True
             break
     assert has_lora, "Expected model to have LoRA embeddings for LoRA training"
-    trainer.train()
 
 
 def test_config_validation_lora(lora_config: tuple[DictConfig, str]) -> None:
@@ -418,6 +419,7 @@ def test_training_cycle_lily(lily_config: tuple[DictConfig, list[str]], get_test
 
     # Test resume training
     cfg.training.run_id = checkpoint_dir.name
+    cfg.training.fork_run_id = None
     cfg.training.max_epochs = cfg.training.max_epochs + 3
     cfg.training.transfer_learning = False
     cfg.training.load_weights_only = False
@@ -463,17 +465,18 @@ def test_training_cycle_miss(miss_config: tuple[DictConfig, list[str]], get_test
 
     # Test resume training
     cfg.training.run_id = checkpoint_dir.name
+    cfg.training.fork_run_id = None
     cfg.training.max_epochs = cfg.training.max_epochs + 3
     cfg.training.transfer_learning = False
     cfg.training.load_weights_only = False
     trainer = AnemoiTrainer(cfg)
     has_miss = False
+    trainer.train()
     for name, _param in trainer.model.named_modules():
         if "miss_block" in name:
             has_miss = True
             break
     assert has_miss, "Expected model to have Miss block for Miss training"
-    trainer.train()
 
 
 def test_config_validation_miss(miss_config: tuple[DictConfig, str]) -> None:
@@ -508,17 +511,18 @@ def test_training_cycle_oft(oft_config: tuple[DictConfig, list[str]], get_test_a
 
     # Test resume training
     cfg.training.run_id = checkpoint_dir.name
+    cfg.training.fork_run_id = None
     cfg.training.max_epochs = cfg.training.max_epochs + 3
     cfg.training.transfer_learning = False
     cfg.training.load_weights_only = False
     trainer = AnemoiTrainer(cfg)
     has_oft = False
+    trainer.train()
     for name, _param in trainer.model.named_modules():
         if "oft_R" in name:
             has_oft = True
             break
     assert has_oft, "Expected model to have Oft block for Oft training"
-    trainer.train()
 
 
 def test_config_validation_oft(oft_config: tuple[DictConfig, str]) -> None:
