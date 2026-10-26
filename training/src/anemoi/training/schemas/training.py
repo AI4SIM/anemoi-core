@@ -128,7 +128,7 @@ class LoRASchema(BaseModel):
     "Lora attention dimension (the “rank”)."
     lora_alpha: int = 32
     "The alpha parameter for Lora scaling."
-    target_modules: list[str] = Field(examples=["mlp.0", "mlp.2"])
+    target_modules: list[str] | str = Field(examples=["mlp.0", "mlp.2"])
     "The names of the modules to apply the adapter to."
     modules_to_save: list[str] = Field(examples=["node_data_extractor.1"])
     "List of modules apart from adapter layers to be set as trainable."
